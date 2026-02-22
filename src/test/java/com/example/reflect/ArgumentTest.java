@@ -92,15 +92,13 @@ class ArgumentTest {
 
         @Test
         void testRecursiveLowerBounds() {
-            TypedClass<Object> source = new TypedClass<>() {};
-            TypedClass<List<? super String>> targetList = new TypedClass<>() {};
+            TypedClass<List<Object>> source = new TypedClass<>() {};
+            TypedClass<List<? super String>> target = new TypedClass<>() {};
 
-            // Extract '? super String' from List
-            java.lang.reflect.ParameterizedType pt = (java.lang.reflect.ParameterizedType) targetList.getType();
-            java.lang.reflect.Type wildcard = pt.getActualTypeArguments()[0];
-
-            // Object is a supertype of String
-            assertTrue(TypedClass.isAssignableTo(wildcard, source.getType()));
+            List<Object> a = new ArrayList<>();
+            List<? super String> b = new ArrayList<>();
+            assertTrue(source.isAssignableTo(target));
+            assertFalse(target.isAssignableTo(source));
         }
     }
 
@@ -114,8 +112,8 @@ class ArgumentTest {
 
         @Test
         void testObjectVarargsCanContainNull() {
-            // Attempting to put null into a primitive varargs (e.g. int[]) should fail
-            assertDoesNotThrow(() -> Argument.Builder.VarArgs.of(new TypedClass<>(){}, new Integer[]{1, null, 3}));
+            // Attempting to put null into non-primitive var args should succeed
+            assertDoesNotThrow(() -> Argument.Builder.VarArgs.of(new TypedClass<>(){}, 1, null, 3));
         }
 
         @Test

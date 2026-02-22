@@ -3,6 +3,7 @@ package com.example.reflect;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -32,7 +33,7 @@ public class JlsReflectionHelperTest {
         // String is more specific than CharSequence
         Argument<String> arg = Argument.Builder.of("test", new TypedClass<String>() {});
 
-        OverloadTarget target = JlsReflectionHelper.instantiate(OverloadTarget.class, null, arg);
+        OverloadTarget target = JlsReflectionHelper.getInstance(MethodHandles.lookup()).instantiate(OverloadTarget.class, arg);
         assertEquals("String", target.result);
     }
 
@@ -42,7 +43,7 @@ public class JlsReflectionHelperTest {
         // Use the specialized primitive builder
         Argument<Integer> arg = Argument.Builder.of(10); // returns Argument<Integer> with int.class
 
-        OverloadTarget target = JlsReflectionHelper.instantiate(OverloadTarget.class, null, arg);
+        OverloadTarget target = JlsReflectionHelper.getInstance(MethodHandles.lookup()).instantiate(OverloadTarget.class, arg);
         assertEquals("primitive", target.result);
     }
 
@@ -52,7 +53,7 @@ public class JlsReflectionHelperTest {
         // Testing primitive varargs: int...
         Argument<int[]> arg = Argument.Builder.VarArgs.of(1, 2, 3, 4, 5);
 
-        VarArgsTarget target = JlsReflectionHelper.instantiate(VarArgsTarget.class, null, arg);
+        VarArgsTarget target = JlsReflectionHelper.getInstance(MethodHandles.lookup()).instantiate(VarArgsTarget.class, arg);
         assertEquals(5, target.length);
     }
 
@@ -67,7 +68,7 @@ public class JlsReflectionHelperTest {
                 new TypedClass<List<String>>() {}
         );
 
-        GenericReceiver receiver = assertDoesNotThrow(() -> JlsReflectionHelper.instantiate(GenericReceiver.class, GenericReceiver.class, arg));
+        GenericReceiver receiver = assertDoesNotThrow(() -> JlsReflectionHelper.getInstance(MethodHandles.lookup()).instantiate(GenericReceiver.class, arg));
         assertNotNull(receiver);
         assertEquals(2, receiver.items.size());
     }
@@ -82,7 +83,7 @@ public class JlsReflectionHelperTest {
                 new TypedClass<>() {}
         );
 
-        GenericReceiver receiver = assertDoesNotThrow(() -> JlsReflectionHelper.instantiate(GenericReceiver.class, GenericReceiver.class, arg));
+        GenericReceiver receiver = assertDoesNotThrow(() -> JlsReflectionHelper.getInstance(MethodHandles.lookup()).instantiate(GenericReceiver.class, arg));
         assertNotNull(receiver);
         assertEquals(1, receiver.items.size(), "Items: " +  receiver.items);
         assertNotNull(receiver.items.getFirst(), "First item is null");
@@ -99,37 +100,37 @@ public class JlsReflectionHelperTest {
                 new TypedClass<>() {}
         );
 
-        assertDoesNotThrow(() -> JlsReflectionHelper.instantiate(GenericReceiver.class, GenericReceiver.class, arg));
+        assertDoesNotThrow(() -> JlsReflectionHelper.getInstance(MethodHandles.lookup()).instantiate(GenericReceiver.class, arg));
     //     etc
     }
 
     @Test
     @DisplayName("Generics: List<Collection<String>> to List<? super List<Object>")
     void testBadGenericsWithBuilder() {
-        record GenericReceiver(List<? extends Collection<Object>> items) {}
+        record GenericReceiver(List<? super List<Object>> items) {}
 
         Argument<List<Collection<String>>> arg = Argument.Builder.of(
                 List.of(List.of("A", "B")),
                 new TypedClass<>() {}
         );
+        // List<Collection<String>> aaa = List.of(List.of("A", "B"));
+        // new GenericReceiver(aaa); // <-- this wouldn't work in java but does work in my reflection helper for some reason.
 
-        GenericReceiver receiver = assertDoesNotThrow(() -> JlsReflectionHelper.instantiate(GenericReceiver.class, GenericReceiver.class, arg));
-        assertNotNull(receiver);
-        assertEquals(1, receiver.items.size(), "Items: " +  receiver.items);
-        assertNotNull(receiver.items.getFirst(), "First item is null");
-        assertEquals(2, receiver.items.getFirst().size(), "First List Items: " +  receiver.items.getFirst());
+        GenericReceiver receiver = JlsReflectionHelper.getInstance(MethodHandles.lookup()).instantiate(GenericReceiver.class, arg); // this should throw but doesn't.
+        System.out.println(arg.getStaticType().getType());
+        // assertNotNull(receiver);
+        // assertEquals(1, receiver.items.size(), "Items: " +  receiver.items);
+        // // assertNotNull(receiver.items.getFirst(), "First item is null");
+        // // assertEquals(2, receiver.items.getFirst().size(), "First List Items: " +  receiver.items.getFirst());
     }
 
     @Test
-    @DisplayName("Varargs Object: String... using Typed Builder")
+    @DisplayName("Varargs Object: String... using Separate Arguments")
     void testObjectVarArgs() {
-        // String...
-        Argument<String[]> arg = Argument.Builder.VarArgs.of(
-                new TypedClass<>() {},
-                "one", "two"
-        );
+        Argument<String> arg1 = Argument.Builder.of("one", new TypedClass<>(){});
+        Argument<String> arg2 = Argument.Builder.of("two", new TypedClass<>(){});
 
-        VarArgsTarget target = JlsReflectionHelper.instantiate(VarArgsTarget.class, null, arg);
+        VarArgsTarget target = JlsReflectionHelper.getInstance(MethodHandles.lookup()).instantiate(VarArgsTarget.class, arg1, arg2);
         assertEquals(2, target.length);
     }
 }

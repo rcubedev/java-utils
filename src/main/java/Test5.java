@@ -1,3 +1,5 @@
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -10,6 +12,7 @@ public class Test5 {
         var ints = new int[]{1, 2};
         var foo = new Foo(ints);
         C.getCaller();
+        C.getByLookup(MethodHandles.lookup());
         // System.out.println(Modifier.isStatic(foo.getClass().getModifiers())); // true
         // System.out.println(foo); // Foo[ints=[I@xxxx]
         // System.out.println(new Foo(new int[]{1,2}).equals(new Foo(new int[]{1,2}))); // false
@@ -21,17 +24,29 @@ public class Test5 {
         public static void getCaller() {
             System.out.println("Caller class: " + StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).getCallerClass());
         }
+
+        public static void getByLookup(MethodHandles.Lookup lookup) {
+            System.out.println("Caller class: " + lookup.lookupClass() + ", lookup: " + lookup);
+        }
     }
 
     public static class B {
         public static void getCaller() {
             A.getCaller();
         }
+
+        public static void getByLookup(MethodHandles.Lookup lookup) {
+            A.getByLookup(lookup);
+        }
     }
 
     public static class C {
         public static void getCaller() {
             B.getCaller();
+        }
+
+        public static void getByLookup(MethodHandles.Lookup lookup) {
+            B.getByLookup(MethodHandles.lookup());
         }
     }
 }

@@ -3,6 +3,9 @@ package com.example.reflect;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,17 +45,20 @@ public class TypedClassTest {
     @Test
     @DisplayName("Lower Bounds: Object is assignable to ? super String")
     void testWildcardLowerBounds() {
-        TypedClass<Object> source = new TypedClass<>() {};
-        TypedClass<List<? super String>> targetList = new TypedClass<>() {};
+        TypedClass<List<? super String>> target = new TypedClass<>() {};
 
-        // We need to extract the type argument manually for a clean test of the static method
-        java.lang.reflect.ParameterizedType pt = (java.lang.reflect.ParameterizedType) targetList.getType();
-        java.lang.reflect.Type wildcard = pt.getActualTypeArguments()[0];
+        TypedClass<List<Object>> listObject = new TypedClass<>() {};
+        assertTrue(listObject.isAssignableTo(target), "List<Object> should be assignable to List<? super String>");
 
-        assertTrue(TypedClass.isAssignableTo(wildcard, Object.class),
-                "Object should satisfy ? super String.");
-        assertFalse(TypedClass.isAssignableTo(wildcard, Integer.class),
-                "Integer should not satisfy ? super String.");
+        TypedClass<List<Integer>> listInteger = new TypedClass<>() {};
+        assertFalse(listInteger.isAssignableTo(target), "List<Object> should not be assignable to List<? super Integer>");
+
+        TypedClass<Object> object = new TypedClass<>() {};
+        assertFalse(object.isAssignableTo(target), "Object should be assignable to List<? super String>");
+        // assertTrue(TypedClass.isAssignableTo(wildcard, new TypedClass<List<Object>>(){}.getType()),
+        //         "Object should satisfy ? super String.");
+        // assertFalse(TypedClass.isAssignableTo(wildcard, Integer.class),
+        //         "Integer should not satisfy ? super String.");
     }
 
     @Test
@@ -62,6 +68,10 @@ public class TypedClassTest {
         TypedClass<Map<String, List<? extends CharSequence>>> target = new TypedClass<>() {};
         TypedClass<Map<String, List<Integer>>> invalidTarget = new TypedClass<>() {};
 
+        // Map<String, List<String>> a = new HashMap<>();
+        // Map<String, List<? extends CharSequence>> b = new HashMap<>();
+        // a = b;
+        // b = a;
         assertTrue(source.isAssignableTo(source));
         assertTrue(target.isAssignableTo(target));
         assertFalse(source.isAssignableTo(target));

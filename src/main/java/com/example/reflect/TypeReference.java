@@ -2,7 +2,9 @@ package com.example.reflect;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Objects;
 
+import com.google.common.reflect.TypeToken;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,6 +60,18 @@ public abstract class TypeReference<T> implements ITypeReference {
         ParameterizedType pType = getParameterizedTypeOrNull();
         if (pType == null) return getType();
         return pType.getRawType();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof ITypeReference that)) return false;
+        return Objects.equals(getType(), that.getType());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getType());
     }
 
     @Override

@@ -1,23 +1,22 @@
 package com.example.reflect;
 
-import java.lang.reflect.Array;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,22 +24,9 @@ import org.jetbrains.annotations.Nullable;
  * A high-fidelity reflection utility that emulates JLS §15.9 and §15.12.
  * Designed to mirror javac's compile-time overload resolution at runtime.
  */
-//fixme future: swap to method handles?
 public class JlsReflectionHelper {
 
-    private static final Map<ConstructorKey, Constructor<?>> RESOLUTION_CACHE = new ConcurrentHashMap<>(); // fixme swap to weak keys and cache with expiry
-
-    private static final BiMap<Class<?>, Class<?>> PRIMITIVE_LOOKUP = ImmutableBiMap.of(
-            int.class, Integer.class,
-            long.class, Long.class,
-            boolean.class, Boolean.class,
-            double.class, Double.class,
-            float.class, Float.class,
-            char.class, Character.class,
-            byte.class, Byte.class,
-            short.class, Short.class,
-            void.class, Void.class // Added void for JLS completeness
-    );
+    private static final Map<ConstructorKey, Optional<MethodHandle>> RESOLUTION_CACHE = new ConcurrentHashMap<>(); // fixme swap to weak keys and cache with expiry?
 
     private static final Map<Class<?>, Set<Class<?>>> WIDENING_PRIMITIVE = Map.of(
             byte.class,  Set.of(short.class, int.class, long.class, float.class, double.class),
@@ -51,15 +37,34 @@ public class JlsReflectionHelper {
             float.class, Set.of(double.class)
     );
 
+    private final MethodHandles.Lookup lookup;
+
+    private JlsReflectionHelper(MethodHandles.Lookup lookup) {
+        this.lookup = lookup;
+    }
+
+    // default to public access
+    public static JlsReflectionHelper getInstance() {
+        return getInstance(MethodHandles.publicLookup());
+    }
+
+    /**
+     * Todo javadoc
+     * If targeting an accessible ctor/etc prefer the overload or pass in MethodHandles.publicLook()
+     * @param lookup
+     * @return
+     */
+    public static JlsReflectionHelper getInstance(MethodHandles.Lookup lookup) {
+        return new JlsReflectionHelper(lookup);
+    }
+
     /**
      * Instantiates a class by mimicking javac overload resolution.
      * @param clazz          The class to instantiate.
-     * @param caller         The calling class context (for visibility).
      * @param args           The arguments containing values and compile time types.
      */
     @SuppressWarnings("unchecked")
-    public static <T> T instantiate(@NotNull Class<T> clazz, @Nullable Class<?> caller,
-                                    IArgument<?> @NotNull ... args) {
+    public <T> T instantiate(@NotNull Class<T> clazz, IArgument<?> @NotNull ... args) {
 
         if (clazz.isEnum()) throw new UnsupportedOperationException("JLS §8.9.2: Enum constructors are unreachable.");
         // System.out.println("ARGS: " + Arrays.toString(args));
@@ -75,48 +80,51 @@ public class JlsReflectionHelper {
         // Check synthetic prepending for inner classes; not a full check as inner class ctor may have Outer (synthetic), Outer
         checkSignature(clazz, argTypes);
 
-        ConstructorKey key = new ConstructorKey(clazz, argTypes, caller); // fixme why cache caller; doing so makes it recompute for each call, maybe instead also cache caller sep
-        Constructor<T> ctor = (Constructor<T>) RESOLUTION_CACHE.computeIfAbsent(key, k -> {
-            Constructor<T> found = findConstructor(clazz, argTypes, caller);
-            if (found != null) found.setAccessible(true);
-            return found;
-        });
+        ConstructorKey key = new ConstructorKey(clazz, Arrays.asList(argTypes), lookup.lookupClass(), lookup.lookupModes()); // trade off as it will recompute if different caller as the new caller may have increased visibility
+        Optional<MethodHandle> handle = RESOLUTION_CACHE.computeIfAbsent(key, k -> Optional.ofNullable(findMethodHandle(clazz, args, lookup)));
 
-        if (ctor == null) {
+        if (handle.isEmpty()) {
             throw new NoSuchElementException("No JLS-compliant constructor found for " + clazz.getName() + ". Ctors: " + Arrays.toString(Arrays.stream(clazz.getDeclaredConstructors()).map(Constructor::toGenericString).toArray())); // fixme make an ex
         }
 
-        return (T) invoke(ctor, args);
+        return (T) invoke(handle.get(), args);
     }
 
-    private static <T> Constructor<T> findConstructor(Class<T> clazz, TypedClass<?>[] argTypes, Class<?> caller) {
-        List<Constructor<T>> ctors = Arrays.stream((Constructor<T>[]) clazz.getDeclaredConstructors())
-                .filter(c -> isVisible(c, caller))
-                .toList();
+    private static <T> MethodHandle findMethodHandle(Class<T> clazz, IArgument<?>[] args, MethodHandles.Lookup lookup) {
+        List<Constructor<T>> ctors = Arrays.asList((Constructor<T>[]) clazz.getDeclaredConstructors());
 
         // JLS §15.12.2: Phased Applicability Search
-        List<Constructor<T>> matches = filter(ctors, argTypes, false, false); // Phase 1
-        if (matches.isEmpty()) matches = filter(ctors, argTypes, true, false); // Phase 2
-        if (matches.isEmpty()) matches = filter(ctors, argTypes, true, true);  // Phase 3
-        return matches.isEmpty() ? null : resolveMostSpecific(matches);
+        List<Constructor<T>> matches = filter(ctors, args, false, false); // Phase 1
+        if (matches.isEmpty()) matches = filter(ctors, args, true, false); // Phase 2
+        if (matches.isEmpty()) matches = filter(ctors, args, true, true);  // Phase 3
+
+        List<MethodHandleCtorPair<T>> matchingHandles = matches.isEmpty() ? List.of() : matches.stream()
+                // .map(this::isVisible).filter(Objects::nonNull).toList();
+                .map(constructor -> new MethodHandleCtorPair<>(isVisible(constructor, lookup), constructor))
+                .filter(pair -> pair.handle() != null)
+                .toList();
+
+        return matchingHandles.isEmpty() ? null : resolveMostSpecific(matchingHandles);
     }
 
-    private static <T> Constructor<T> resolveMostSpecific(List<Constructor<T>> matches) {
-        if (matches.size() == 1) return matches.getFirst();
+    private static <T> MethodHandle resolveMostSpecific(List<MethodHandleCtorPair<T>> matches) {
+        if (matches.size() == 1) return matches.getFirst().handle();
 
-        Constructor<T> winner = matches.getFirst();
+        Constructor<T> winner = matches.getFirst().ctor();
+        MethodHandle winnerHandle = matches.getFirst().handle();
         for (int i = 1; i < matches.size(); i++) {
-            Constructor<T> candidate = matches.get(i);
-            if (isMoreSpecific(candidate, winner)) winner = candidate;
-        }
-
-        // Ambiguity Guard: Ensure winner is strictly more specific than all other matches
-        for (Constructor<T> other : matches) {
-            if (other != winner && !isMoreSpecific(winner, other)) {
-                throw new RuntimeException("Ambiguous call: " + winner + " and " + other + " are both applicable.");
+            MethodHandleCtorPair<T> candidate = matches.get(i);
+            Constructor<T> candidateCtor = candidate.ctor();
+            if (isMoreSpecific(candidateCtor, winner)) {
+                winner = candidateCtor;
+                winnerHandle = candidate.handle();
+            } else if (!isMoreSpecific(winner, candidateCtor)) {
+                // Ambiguity Guard: Ensure winner is strictly more specific than all other matches
+                throw new RuntimeException("Ambiguous call: " + winner + " and " + candidateCtor + " are both applicable.");
             }
         }
-        return winner;
+
+        return winnerHandle;
     }
 
     private static boolean isMoreSpecific(Constructor<?> c1, Constructor<?> c2) {
@@ -136,21 +144,28 @@ public class JlsReflectionHelper {
         return true;
     }
 
-    private static boolean isVisible(@NotNull Constructor<?> ctor, @Nullable Class<?> caller) {
-        int mod = ctor.getModifiers();
-        if (Modifier.isPublic(mod)) return true;
-        if (caller == null) return false;
-
-        Class<?> declaring = ctor.getDeclaringClass();
-        if (getTopLevelClass(declaring) == getTopLevelClass(caller)) return true; // private, protected & default
-
-        boolean samePkg = declaring.getPackageName().equals(caller.getPackageName());
-        if (Modifier.isProtected(mod)) return samePkg || declaring.isAssignableFrom(caller);
-        return samePkg; // Package-private
+    private static @Nullable MethodHandle isVisible(Constructor<?> ctor, MethodHandles.Lookup lookup) {
+        try {
+            return lookup.unreflectConstructor(ctor);
+        } catch (IllegalAccessException e) {
+            return null;
+        }
     }
 
-    private static boolean isCompatible(@NotNull Type target, @NotNull TypedClass<?> source, boolean allowBox) {
+    // private static boolean isVisible(@NotNull Constructor<?> ctor, @Nullable Class<?> caller) {
+    //     int mod = ctor.getModifiers();
+    //     if (Modifier.isPublic(mod)) return true;
+    //     if (caller == null) return false;
+    //
+    //     Class<?> declaring = ctor.getDeclaringClass();
+    //     if (getTopLevelClass(declaring) == getTopLevelClass(caller)) return true; // private, protected & default
+    //
+    //     boolean samePkg = declaring.getPackageName().equals(caller.getPackageName());
+    //     if (Modifier.isProtected(mod)) return samePkg || declaring.isAssignableFrom(caller);
+    //     return samePkg; // Package-private
+    // }
 
+    private static boolean isCompatible(@NotNull Type target, @NotNull TypedClass<?> source, boolean allowBox) {
         Class<?> sourceRaw = source.getTypedClass();
 
         // Handle Primitives/Boxing first as TypedClass usually wraps them
@@ -175,37 +190,25 @@ public class JlsReflectionHelper {
                 WIDENING_PRIMITIVE.getOrDefault(source, Collections.emptySet()).contains(target);
     }
 
-    private static Object invoke(Constructor<?> ctor, IArgument<?>[] args) {
+    private static Object invoke(MethodHandle handle, IArgument<?>[] args) {
         try {
-            // fixme check generic types
-            Object[] rawArgs = Arrays.stream(args).map(IArgument::get).toArray();
-            if (!ctor.isVarArgs()) return ctor.newInstance(rawArgs);
+            Object[] rawArgs = Arrays.stream(args)
+                    .map(arg -> Objects.requireNonNull(arg, "Argument must not be null."))
+                    .map(IArgument::get)
+                    .toArray(Object[]::new);
 
-            int lastIdx = ctor.getParameterCount() - 1;
-            Class<?> varargType = ctor.getParameterTypes()[lastIdx];
+            if (!handle.isVarargsCollector()) return handle.invokeWithArguments(rawArgs);
+            int paramCount = handle.type().parameterCount();
 
-
-            // JLS §15.12.4.2: Varargs Array Identity
-            Class<?> componentType = varargType.getComponentType();
-
-            // If pre-packed via Argument
-            if (args.length == ctor.getParameterCount() && args[lastIdx].getKind() == Argument.Kind.VAR_ARGS) {
-                Object lastArg = rawArgs[lastIdx];
-                if (lastArg == null || varargType.isAssignableFrom(lastArg.getClass())) {
-                    return ctor.newInstance(rawArgs);
-                }
+            // JLS §15.12.4.2: If the user provided a pre-packed array
+            // that matches the varargs type exactly, we must use Fixed Arity. (this is preferred)
+            if (args.length == paramCount && args[paramCount-1].getKind() == Argument.Kind.VAR_ARGS) {
+                return handle.asFixedArity().invokeWithArguments(rawArgs);
             }
 
-            // Else pack individual arguments
-            int varArgLen = args.length - lastIdx;
-            Object varArgArray = Array.newInstance(componentType, varArgLen);
-            for (int i = 0; i < varArgLen; i++) Array.set(varArgArray, i, rawArgs[lastIdx + i]);
-
-            Object[] combined = new Object[lastIdx + 1];
-            System.arraycopy(rawArgs, 0, combined, 0, lastIdx);
-            combined[lastIdx] = varArgArray;
-            return ctor.newInstance(combined);
-        } catch (Exception e) { throw new RuntimeException(e); }
+            // Else invokeWithArguments handles the packing
+            return handle.invokeWithArguments(rawArgs);
+        } catch (Throwable e) { throw new RuntimeException(e); }
     }
 
     // --- Static Utility Helpers ---
@@ -235,7 +238,12 @@ public class JlsReflectionHelper {
         return argTypes;
     }
 
-    private static <T> List<Constructor<T>> filter(List<Constructor<T>> ctors, TypedClass<?>[] argTypes, boolean box, boolean var) {
+    private static <T> List<Constructor<T>> filter(List<Constructor<T>> ctors, IArgument<?>[] args, boolean box, boolean var) {
+        TypedClass<?>[] argTypes = Arrays.stream(args)
+                .map(arg -> Objects.requireNonNull(arg, "Argument must not be null."))
+                .map(IArgument::getStaticType)
+                .toArray(TypedClass<?>[]::new);
+
         return ctors.stream().filter(c -> {
             Class<?>[] params = c.getParameterTypes();
             Type[] paramTypes = c.getGenericParameterTypes();
@@ -253,9 +261,10 @@ public class JlsReflectionHelper {
             // Check variable parameters ("over and over")
             if (var) {
                 Type varargArrayType = paramTypes[fixedLimit];
-                // Type componentType = getVarargComponentType(varargArrayType);
+                Type componentType = getVarargComponentType(varargArrayType);
                 for (int i = fixedLimit; i < argTypes.length; i++) {
-                    if (!isCompatible(varargArrayType, argTypes[i], box)) return false;
+                    Type target = (args[i].getKind() == Argument.Kind.VAR_ARGS) ? varargArrayType : componentType;
+                    if (!isCompatible(target, argTypes[i], box)) return false;
                 }
             }
             return true;
@@ -280,9 +289,6 @@ public class JlsReflectionHelper {
         return top;
     }
 
-    private static Class<?> getPrimitive(Class<?> wrapper) {
-        return PRIMITIVE_LOOKUP.inverse().get(wrapper);
-    }
-
-    private record ConstructorKey(Class<?> clazz, TypedClass<?>[] argTypes, Class<?> caller) {}
+    private record ConstructorKey(Class<?> clazz, List<TypedClass<?>> argTypes, Class<?> lookupClass, int lookupModes) {}
+    private record MethodHandleCtorPair<T>(MethodHandle handle, Constructor<T> ctor) {}
 }

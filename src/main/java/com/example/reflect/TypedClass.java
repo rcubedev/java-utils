@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.common.reflect.TypeToken;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
@@ -55,38 +56,39 @@ public abstract class TypedClass<T> extends TypeReference<T> {
     }
 
     public static boolean isAssignableTo(@NotNull Type target, @NotNull Type source) {
-        if (target.equals(source)) return true;
-
-        return switch (target) {
-            case Class<?> targetClass -> targetClass.isAssignableFrom(getRawType(source));
-
-            case ParameterizedType pTarget -> {
-                Class<?> rawTarget = (Class<?>) pTarget.getRawType();
-                if (!rawTarget.isAssignableFrom(getRawType(source))) yield false;
-
-                if (source instanceof ParameterizedType pSource) {
-                    yield compareArguments(pTarget.getActualTypeArguments(), pSource.getActualTypeArguments());
-                }
-                // Raw type assignment to parameterized type (JLS allows with warning/unchecked)
-                yield true;
-            }
-
-            case WildcardType wTarget -> isWithinBounds(wTarget, source);
-
-            case TypeVariable<?> tTarget -> {
-                for (Type bound : tTarget.getBounds()) {
-                    if (!isAssignableTo(bound, source)) yield false;
-                }
-                yield true;
-            }
-
-            case GenericArrayType gaTarget -> {
-                Type sourceComponent = getComponentType(source);
-                yield sourceComponent != null && isAssignableTo(gaTarget.getGenericComponentType(), sourceComponent);
-            }
-
-            default -> target.equals(source);
-        };
+        return TypeToken.of(target).isSupertypeOf(source);
+        // if (target.equals(source)) return true;
+        //
+        // return switch (target) {
+        //     case Class<?> targetClass -> targetClass.isAssignableFrom(getRawType(source));
+        //
+        //     case ParameterizedType pTarget -> {
+        //         Class<?> rawTarget = (Class<?>) pTarget.getRawType();
+        //         if (!rawTarget.isAssignableFrom(getRawType(source))) yield false;
+        //
+        //         if (source instanceof ParameterizedType pSource) {
+        //             yield compareArguments(pTarget.getActualTypeArguments(), pSource.getActualTypeArguments());
+        //         }
+        //         // Raw type assignment to parameterized type (JLS allows with warning/unchecked)
+        //         yield true;
+        //     }
+        //
+        //     case WildcardType wTarget -> isWithinBounds(wTarget, source);
+        //
+        //     case TypeVariable<?> tTarget -> {
+        //         for (Type bound : tTarget.getBounds()) {
+        //             if (!isAssignableTo(bound, source)) yield false;
+        //         }
+        //         yield true;
+        //     }
+        //
+        //     case GenericArrayType gaTarget -> {
+        //         Type sourceComponent = getComponentType(source);
+        //         yield sourceComponent != null && isAssignableTo(gaTarget.getGenericComponentType(), sourceComponent);
+        //     }
+        //
+        //     default -> target.equals(source);
+        // };
     }
 
     private static boolean compareArguments(Type[] targetArgs, Type[] sourceArgs) {
@@ -111,7 +113,7 @@ public abstract class TypedClass<T> extends TypeReference<T> {
         }
         for (Type lower : target.getLowerBounds()) {
             // Source must be a SUPERTYPE of the lower bound
-            if (!isAssignableTo(source, lower)) return false;
+            if (!isAssignableTo(lower, source)) return false;
         }
         return true;
     }
