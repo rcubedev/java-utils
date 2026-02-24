@@ -24,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
  * A high-fidelity reflection utility that emulates JLS §15.9 and §15.12.
  * Designed to mirror javac's compile-time overload resolution at runtime.
  */
-public class JlsReflectionHelper {
+public class JlsReflectionHelper<T> {
 
     private static final Map<ConstructorKey, Optional<MethodHandle>> RESOLUTION_CACHE = new ConcurrentHashMap<>(); // fixme swap to weak keys and cache with expiry?
 
@@ -37,15 +37,21 @@ public class JlsReflectionHelper {
             float.class, Set.of(double.class)
     );
 
+    private final Class<T> target;
     private final MethodHandles.Lookup lookup;
 
-    private JlsReflectionHelper(MethodHandles.Lookup lookup) {
+    private JlsReflectionHelper(Class<T> target, MethodHandles.Lookup lookup) {
+        try {
+            this.target = lookup.accessClass(target);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("Lookup " + lookup + " cannot access " + target); // todo make a custom ex
+        }
         this.lookup = lookup;
     }
 
     // default to public access
-    public static JlsReflectionHelper getInstance() {
-        return getInstance(MethodHandles.publicLookup());
+    public static <T> JlsReflectionHelper<T> getInstance(Class<T> target) {
+        return getInstance(target, MethodHandles.publicLookup());
     }
 
     /**
@@ -54,21 +60,20 @@ public class JlsReflectionHelper {
      * @param lookup
      * @return
      */
-    public static JlsReflectionHelper getInstance(MethodHandles.Lookup lookup) {
-        return new JlsReflectionHelper(lookup);
+    public static <T> JlsReflectionHelper<T> getInstance(Class<T> clazz, MethodHandles.Lookup lookup) {
+        return new JlsReflectionHelper<>(clazz, lookup);
     }
 
     /**
      * Instantiates a class by mimicking javac overload resolution.
-     * @param clazz          The class to instantiate.
-     * @param args           The arguments containing values and compile time types.
+     * @param args The arguments containing values and compile time types.
      */
     @SuppressWarnings("unchecked")
-    public <T> T instantiate(@NotNull Class<T> clazz, IArgument<?> @NotNull ... args) {
+    public T instantiate(IArgument<?> @NotNull ... args) {
 
-        if (clazz.isEnum()) throw new UnsupportedOperationException("JLS §8.9.2: Enum constructors are unreachable.");
+        if (target.isEnum()) throw new UnsupportedOperationException("JLS §8.9.2: Enum constructors are unreachable.");
         // System.out.println("ARGS: " + Arrays.toString(args));
-        Objects.requireNonNull(clazz, "Class must not be null.");
+        Objects.requireNonNull(target, "Class must not be null.");
         Objects.requireNonNull(args, "Arguments or the array must not be null.");
 
         // Use TypedClass from Arguments to preserve generic information
@@ -78,13 +83,13 @@ public class JlsReflectionHelper {
                 .toArray(TypedClass<?>[]::new);
 
         // Check synthetic prepending for inner classes; not a full check as inner class ctor may have Outer (synthetic), Outer
-        checkSignature(clazz, argTypes);
+        checkSignature(target, argTypes);
 
-        ConstructorKey key = new ConstructorKey(clazz, Arrays.asList(argTypes), lookup.lookupClass(), lookup.lookupModes()); // trade off as it will recompute if different caller as the new caller may have increased visibility
-        Optional<MethodHandle> handle = RESOLUTION_CACHE.computeIfAbsent(key, k -> Optional.ofNullable(findMethodHandle(clazz, args, lookup)));
+        ConstructorKey key = new ConstructorKey(target, Arrays.asList(argTypes), lookup.lookupClass(), lookup.lookupModes()); // trade off as it will recompute if different caller as the new caller may have increased visibility
+        Optional<MethodHandle> handle = RESOLUTION_CACHE.computeIfAbsent(key, k -> Optional.ofNullable(findMethodHandle(target, args, lookup)));
 
         if (handle.isEmpty()) {
-            throw new NoSuchElementException("No JLS-compliant constructor found for " + clazz.getName() + ". Ctors: " + Arrays.toString(Arrays.stream(clazz.getDeclaredConstructors()).map(Constructor::toGenericString).toArray())); // fixme make an ex
+            throw new NoSuchElementException("No JLS-compliant constructor found for " + target.getName() + ". Passed args: " + Arrays.toString(args) + ". Ctors: " + Arrays.toString(Arrays.stream(target.getDeclaredConstructors()).map(Constructor::toGenericString).toArray())); // fixme make an ex
         }
 
         return (T) invoke(handle.get(), args);

@@ -1,12 +1,11 @@
 package com.example;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import net.minecraft.world.entity.EntityType;
 
+import com.example.reflect.TypedClass;
 import folk.sisby.kaleido.api.WrappedConfig;
 import folk.sisby.kaleido.lib.quiltconfig.api.annotations.Comment;
 import folk.sisby.kaleido.lib.quiltconfig.api.annotations.DisplayNameConvention;
@@ -16,11 +15,12 @@ import folk.sisby.kaleido.lib.quiltconfig.api.annotations.SerializedNameConventi
 import folk.sisby.kaleido.lib.quiltconfig.api.metadata.NamingSchemes;
 import folk.sisby.kaleido.lib.quiltconfig.api.values.ValueList;
 import folk.sisby.kaleido.lib.quiltconfig.api.values.ValueMap;
-import org.jetbrains.annotations.NotNull;
 
 @DisplayNameConvention(NamingSchemes.SPACE_SEPARATED_LOWER_CASE_INITIAL_UPPER_CASE)
 @SerializedNameConvention(NamingSchemes.SNAKE_CASE)
 public class OtherConfigTest extends WrappedConfig {
+
+    private static TypedClass<String> stringTypedClass = new TypedClass<>(){};
 
     @Comment({"Should debug messages be sent to the console?", "This option should be enabled if you are reporting an error or bug."})
     public boolean debugMode = false;
@@ -46,7 +46,7 @@ public class OtherConfigTest extends WrappedConfig {
             "\"disabled_world_1\" = \"*\" <-- CombatLogX is disabled for all dimensions in disabled_world_1",
             "\"DiSaBlEd_WoRlD_2\" = [\"minecraft:overworld\", \"example:custom_dimension\"] <-- CombatLogX is disabled for the overworld and a custom dimension in DiSaBlEd_WoRlD_2"
     })
-    public Map<String, StringOrListExt> disabledWorlds = ValueMap.builder(new StringOrListExt("", String.class)).put("test", new StringOrListExt("*", String.class)).build();
+    public Map<String, StringOrList> disabledWorlds = ValueMap.builder(new StringOrList("")).put("test", new StringOrList("*")).build();
 
     @Comment({"This option changes the 'disabled_worlds' to a list of enabled dimensions.",
             "You can use this when you have fewer combat dimensions than disabled dimensions."
@@ -152,8 +152,8 @@ public class OtherConfigTest extends WrappedConfig {
             "enabled_tag_reasons = \"*\""
     })
     // TODO: string or list?
-    public StringOrListExt enabledTagReasons = new StringOrListExt("*", String.class);
-    public StringOrListExt randomStringOrListTest = new StringOrListExt(List.of("val1", "val2"), String.class);
+    public StringOrList enabledTagReasons = new StringOrList("*");
+    public StringOrList randomStringOrListTest = new StringOrList(List.of("val1", "val2"));
 
     public static class ConfigReader {
         private final OtherConfigTest configuration;

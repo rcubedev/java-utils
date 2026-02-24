@@ -2,16 +2,17 @@ package com.example;
 
 import java.util.List;
 
+import com.example.reflect.TypedClass;
 import folk.sisby.kaleido.lib.quiltconfig.api.values.ConfigSerializableObject;
 
 @AllowConstructorFallback
 public class ElementOrList<T> extends AbstractElementOrList<T, ElementOrList<T>> implements ConfigSerializableObject<Object> {
 
-    public ElementOrList(T value, Class<T> type) {
+    public ElementOrList(T value, TypedClass<T> type) {
         super(value, type);
     }
 
-    public ElementOrList(List<T> values, Class<T> type) {
+    public ElementOrList(List<T> values, TypedClass<T> type) {
         super(values, type);
     }
 
