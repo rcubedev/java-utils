@@ -222,10 +222,10 @@ public abstract class AbstractElementOrList<T, S extends AbstractElementOrList<T
 
     @Override
     public S copy() {
-        if (value instanceof ComplexConfigValue valueList) {
-            return newInstance((ValueList<T>) valueList.copy()); // safe cast as constuctors set value as ValueList<T>
+        if (value instanceof ValueList<?> valueList) {
+            return newInstance((ValueList<T>) valueList.copy()); // safe cast as constuctors set value as ValueList<T>, value list impl returns ValueList<T>
         }
-        if (value instanceof ConfigSerializableObject configValue) {
+        if (value instanceof ComplexConfigValue configValue) {
             return newInstance((T) configValue.copy());
         }
         return newInstance((T) value);
