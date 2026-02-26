@@ -8,21 +8,11 @@ import folk.sisby.kaleido.lib.quiltconfig.api.values.ConfigSerializableObject;
 @AllowConstructorFallback
 public class ElementOrList<T> extends AbstractElementOrList<T, ElementOrList<T>> implements ConfigSerializableObject<Object> {
 
-    public ElementOrList(T value, TypedClass<T> type) {
-        super(value, type);
+    public ElementOrList(T value, TypedClass<T> type, TypedClass<List<T>> listType) {
+        super(value, type, listType);
     }
 
-    public ElementOrList(List<T> values, TypedClass<T> type) {
-        super(values, type);
+    public ElementOrList(List<T> values, TypedClass<T> type, TypedClass<List<T>> listType) {
+        super(values, type, listType);
     }
-
-    // @Override
-    // protected @NotNull ElementOrList<T> newInstance(T value) {
-    //     return new ElementOrList<>(value, getType());
-    // }
-    //
-    // @Override
-    // protected @NotNull ElementOrList<T> newInstance(List<T> values) {
-    //     return new ElementOrList<>(values, getType());
-    // }
 }

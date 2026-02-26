@@ -1,5 +1,7 @@
 package com.example;
 
+import java.util.Map;
+
 import net.minecraft.world.level.storage.ServerLevelData;
 
 import net.fabricmc.api.ModInitializer;
@@ -8,6 +10,7 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.spongepowered.asm.mixin.injection.struct.InjectorGroupInfo;
 
 public class ExampleMod implements ModInitializer {
 	public static final String MOD_ID = "modid";
@@ -27,7 +30,7 @@ public class ExampleMod implements ModInitializer {
 		// Proceed with mild caution.
 
 		LOGGER.info("Hello Fabric world!");
-        LOGGER.info("Disabled worlds: {}", OTHER_CONFIG_TEST.disabledWorlds);
+        LOGGER.info("Disabled worlds: {}", OTHER_CONFIG_TEST.disabledWorlds.entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue().getRepresentation().toString()).toList());
         // ElementOrList<String> test = new ElementOrList<>("", String.class);
         // LOGGER.info("ElementOrList<String>: {}", test.getClass().getSimpleName());
         // LOGGER.info("New Instance ElementOrList<String>: {}", test.newInstance("B").getClass().getSimpleName());

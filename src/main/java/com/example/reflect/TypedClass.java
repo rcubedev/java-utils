@@ -21,7 +21,8 @@ import org.jetbrains.annotations.NotNull;
  * Usage: TypedClass<T> typedClass = new TypedClass<>() {}
  *        Similar to Class<T>, T is the class type followed by generic info.
  *        To hold primitive classes, use {@link #ofPrimitive(Class)} as they
- *        cannot be instantiated generically
+ *        cannot be instantiated generically.
+ *        TypeParams such as T and K are not supported, only pass in a class (may be generic)
  * @param <T> the held class. if primitives are supported, the consumer of this class
  *            should take a TypedClass<?> as primitives cannot match T
  */
@@ -90,34 +91,6 @@ public abstract class TypedClass<T> extends TypeReference<T> {
         //     default -> target.equals(source);
         // };
     }
-
-    private static boolean compareArguments(Type[] targetArgs, Type[] sourceArgs) {
-        if (targetArgs.length != sourceArgs.length) return false;
-        for (int i = 0; i < targetArgs.length; i++) {
-            Type t = targetArgs[i];
-            Type s = sourceArgs[i];
-
-            if (t instanceof WildcardType wt) {
-                if (!isWithinBounds(wt, s)) return false;
-            } else {
-                // Invariance: List<String> != List<Object>
-                if (!t.equals(s)) return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean isWithinBounds(WildcardType target, Type source) {
-        for (Type upper : target.getUpperBounds()) {
-            if (!isAssignableTo(upper, source)) return false;
-        }
-        for (Type lower : target.getLowerBounds()) {
-            // Source must be a SUPERTYPE of the lower bound
-            if (!isAssignableTo(lower, source)) return false;
-        }
-        return true;
-    }
-
     private static Type getComponentType(Type type) {
         if (type instanceof Class<?> c) return c.getComponentType();
         if (type instanceof GenericArrayType gat) return gat.getGenericComponentType();
