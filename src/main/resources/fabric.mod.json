@@ -16,10 +16,10 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.example.ExampleMod"
+          "com.github.rcubedev.example.ExampleMod"
 		],
 		"client": [
-			"com.example.ExampleModClient"
+          "com.github.rcubedev.example.ExampleModClient"
 		]
 	},
 	"mixins": [
