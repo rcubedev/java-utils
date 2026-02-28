@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
@@ -99,9 +100,7 @@ public class ArrayBackedEventHandler<E extends Event> extends EventHandler<E> {
         synchronized (lock) {
             for (EventPhaseData<E> phase : sortedPhases) {
                 List<EventProcessor<?>> list = map.computeIfAbsent(phase.priority, k -> new ArrayList<>());
-                for (EventProcessor<E> listener : phase.listeners) {
-                    list.add(listener);
-                }
+                Collections.addAll(list, phase.listeners);
             }
         }
     }
@@ -120,6 +119,11 @@ public class ArrayBackedEventHandler<E extends Event> extends EventHandler<E> {
             getOrCreatePhase(priority, true).addListener(listener);
             rebuildInvoker(listeners.length + 1);
         }
+    }
+
+    @Override
+    public void register(@NotNull Object target) {
+        EventSubscriberHandler.register(this, target);
     }
 
     @SuppressWarnings("unchecked")
