@@ -20,7 +20,6 @@ import org.jetbrains.annotations.NotNull;
  */
 public abstract class AbstractElementOrList<T, S extends AbstractElementOrList<T, S>> extends AbstractDualElementValue<T, List<T>, S> implements ConfigSerializableObject<Object> {
 
-    private final TypedClass<T> type;
 
     /**
      * Single-value constructor.
@@ -31,7 +30,6 @@ public abstract class AbstractElementOrList<T, S extends AbstractElementOrList<T
      */
     public AbstractElementOrList(T value, TypedClass<T> type, TypedClass<List<T>> listType) {
         super(value, type, listType, true);
-        this.type = type;
     }
 
     /**
@@ -43,14 +41,18 @@ public abstract class AbstractElementOrList<T, S extends AbstractElementOrList<T
      */
     @SuppressWarnings("unchecked")
     public AbstractElementOrList(List<@NotNull T> values, TypedClass<T> type, TypedClass<List<T>> listType) {
-        this(values.toArray((T[]) Array.newInstance(type.getTypedClass(), 0)), type, listType);
+        this(values.toArray((T[]) Array.newInstance(type.getTypedClass(), values.size())), type, listType);
     }
 
     // fixme maybe allow values to be empty actually to create empty lists or something like [].
     private AbstractElementOrList(T @NotNull [] values, TypedClass<T> type, TypedClass<List<T>> listType) {
-        super(ValueList.create(values[0], Arrays.copyOf(values, values.length, (Class<? extends T[]>) Array.newInstance(type.getTypedClass(), values.length).getClass())), type, listType, false);
+        super(passValues(values, type), type, listType, false);
+    }
+
+    // needed as super ctor must be first
+    private static <T> ValueList<T> passValues(T[] values, TypedClass<T> type) {
         if (values.length == 0) throw new IllegalArgumentException("values must not be empty");
-        this.type = type;
+        return ValueList.create(values[0], Arrays.copyOf(values, values.length, (Class<? extends T[]>) Array.newInstance(type.getTypedClass(), values.length).getClass()));
     }
 
     /**
@@ -60,7 +62,7 @@ public abstract class AbstractElementOrList<T, S extends AbstractElementOrList<T
      */
     @Override
     protected TypedClass<T> getType() {
-        return this.type;
+        return getTypeA();
     }
 
     /**

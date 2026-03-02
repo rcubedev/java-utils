@@ -20,8 +20,6 @@ import folk.sisby.kaleido.lib.quiltconfig.api.values.ValueMap;
 @SerializedNameConvention(NamingSchemes.SNAKE_CASE)
 public class OtherConfigTest extends WrappedConfig {
 
-    private static TypedClass<String> stringTypedClass = new TypedClass<>(){};
-
     @Comment({"Should debug messages be sent to the console?", "This option should be enabled if you are reporting an error or bug."})
     public boolean debugMode = false;
 

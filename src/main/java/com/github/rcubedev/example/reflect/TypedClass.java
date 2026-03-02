@@ -138,14 +138,19 @@ public abstract class TypedClass<T> extends TypeReference<T> {
     private final static class PrimitiveTypedClass<T> extends TypedClass<T> {
 
         public PrimitiveTypedClass(@NotNull Class<T> type) {
-            super(type);
+            super(checkType(type));
+        }
+
+        // needed as cannot do checks before super ctor
+        private static <T> Class<T> checkType(Class<T> type) {
             if (!type.isPrimitive() && !type.isArray()) throw new IllegalArgumentException(type.getSimpleName() + " is not a primitive");
             if (type.isArray() && !type.componentType().isPrimitive()) throw new IllegalArgumentException(type.getSimpleName() + " is not a primitive array type");
+            return type;
         }
 
         @Override
         protected boolean allowRawTypes() { // fixme this class doesnt actually use raw types but uses the type ctor so thinks it does
-            return true;
+            return true; // cannot depend on inst field as it won't be init yet.
         }
     }
 }
