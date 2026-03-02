@@ -16,7 +16,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,7 +28,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public class JlsReflectionHelper<T> {
 
-    private static final Map<ConstructorKey, Optional<MethodHandle>> RESOLUTION_CACHE = new ConcurrentHashMap<>(); // fixme swap to weak keys and cache with expiry?
+    private static final Map<CacheKey, Optional<MethodHandle>> RESOLUTION_CACHE = new ConcurrentHashMap<>(); // fixme swap to weak keys and cache with expiry?
 
     private static final Map<Class<?>, Set<Class<?>>> WIDENING_PRIMITIVE = Map.of(
             byte.class,  Set.of(short.class, int.class, long.class, float.class, double.class),
@@ -72,30 +74,36 @@ public class JlsReflectionHelper<T> {
     public T instantiate(IArgument<?> @NotNull ... args) {
 
         if (target.isEnum()) throw new UnsupportedOperationException("JLS §8.9.2: Enum constructors are unreachable.");
-        // System.out.println("ARGS: " + Arrays.toString(args));
         Objects.requireNonNull(target, "Class must not be null.");
         Objects.requireNonNull(args, "Arguments or the array must not be null.");
 
-        // Use TypedClass from Arguments to preserve generic information
-        TypedClass<?>[] argTypes = Arrays.stream(args)
-                .map(arg -> Objects.requireNonNull(arg, "Argument must not be null."))
-                .map(IArgument::getStaticType)
-                .toArray(TypedClass<?>[]::new);
+        TypedClass<?>[] argTypes = new TypedClass[args.length];
+        for (int i = 0; i < args.length; i++) {
+            IArgument<?> arg = args[i];
+            Objects.requireNonNull(arg, "Argument must not be null.");
+            argTypes[i] = arg.getStaticType();
+        }
 
         // Check synthetic prepending for inner classes; not a full check as inner class ctor may have Outer (synthetic), Outer
         checkSignature(target, argTypes);
 
-        ConstructorKey key = new ConstructorKey(target, Arrays.asList(argTypes), lookup.lookupClass(), lookup.lookupModes()); // trade off as it will recompute if different caller as the new caller may have increased visibility
+        Class<?>[] paramArray = new Class<?>[argTypes.length];
+        for (int i = 0; i < argTypes.length; i++) {
+            paramArray[i] = argTypes[i].getTypedClass();
+        }
+        List<Class<?>> params = List.of(paramArray);
+        CacheKey key = CacheKey.create(target, "new", params, lookup);
         Optional<MethodHandle> handle = RESOLUTION_CACHE.computeIfAbsent(key, k -> Optional.ofNullable(findMethodHandle(target, args, lookup)));
 
         if (handle.isEmpty()) {
-            throw new NoSuchElementException("No JLS-compliant constructor found for " + target.getName() + ". Passed args: " + Arrays.toString(args) + ". Ctors: " + Arrays.toString(Arrays.stream(target.getDeclaredConstructors()).map(Constructor::toGenericString).toArray())); // fixme make an ex
+            throw new NoSuchElementException("No JLS-compliant constructor found for " + target.getName()); // fixme make an ex
         }
 
         return (T) invoke(handle.get(), args);
     }
 
     private static <T> MethodHandle findMethodHandle(Class<T> clazz, IArgument<?>[] args, MethodHandles.Lookup lookup) {
+        @SuppressWarnings("unchecked")
         List<Constructor<T>> ctors = Arrays.asList((Constructor<T>[]) clazz.getDeclaredConstructors());
 
         // JLS §15.12.2: Phased Applicability Search
@@ -143,7 +151,7 @@ public class JlsReflectionHelper<T> {
             if (!isPhase1Compatible(p2[i], p1[i])) return false;
         }
 
-        if (c1.isVarArgs() && c2.isVarArgs()) {
+        if (c1.isVarArgs()) {
             return isPhase1Compatible(p2[p2.length-1].getComponentType(), p1[p1.length-1].getComponentType());
         }
         return true;
@@ -175,7 +183,6 @@ public class JlsReflectionHelper<T> {
 
         // Handle Primitives/Boxing first as TypedClass usually wraps them
         if (target instanceof Class<?> targetClass && targetClass.isPrimitive()) {
-            if (sourceRaw == null) return false;
             if (sourceRaw == targetClass) return true;
             return WIDENING_PRIMITIVE.getOrDefault(sourceRaw, Collections.emptySet()).contains(targetClass);
         }
@@ -195,12 +202,13 @@ public class JlsReflectionHelper<T> {
                 WIDENING_PRIMITIVE.getOrDefault(source, Collections.emptySet()).contains(target);
     }
 
-    private static Object invoke(MethodHandle handle, IArgument<?>[] args) {
+    @ApiStatus.Internal
+    public static Object invoke(MethodHandle handle, IArgument<?>[] args) {
         try {
-            Object[] rawArgs = Arrays.stream(args)
-                    .map(arg -> Objects.requireNonNull(arg, "Argument must not be null."))
-                    .map(IArgument::get)
-                    .toArray(Object[]::new);
+            Object[] rawArgs = new Object[args.length];
+            for (int i = 0; i < args.length; i++) {
+                rawArgs[i] = args[i].get();
+            }
 
             if (!handle.isVarargsCollector()) return handle.invokeWithArguments(rawArgs);
             int paramCount = handle.type().parameterCount();
@@ -211,7 +219,7 @@ public class JlsReflectionHelper<T> {
                 return handle.asFixedArity().invokeWithArguments(rawArgs);
             }
 
-            // Else invokeWithArguments handles the packing
+            // Else invokeWithArguments handles the packing. this feature may be removed in future
             return handle.invokeWithArguments(rawArgs);
         } catch (Throwable e) { throw new RuntimeException(e); }
     }
@@ -294,6 +302,33 @@ public class JlsReflectionHelper<T> {
         return top;
     }
 
-    private record ConstructorKey(Class<?> clazz, List<TypedClass<?>> argTypes, Class<?> lookupClass, int lookupModes) {}
+    @ApiStatus.Internal
+    // don't instantiate directly, use factory
+    public record CacheKey(Class<?> target, String methodName, List<Class<?>> params, Object effectiveCaller, int lookupModes) {
+        public static CacheKey create(Class<?> target, String method, List<Class<?>> params, MethodHandles.Lookup lookup) {
+            int modes = lookup.lookupModes();
+            Class<?> lookupClass = lookup.lookupClass();
+            Object effectiveCaller;
+
+            if ((modes & MethodHandles.Lookup.PRIVATE) != 0) {
+                effectiveCaller = lookupClass.getNestHost();
+            } else if ((modes & MethodHandles.Lookup.PACKAGE) != 0) {
+                effectiveCaller = List.of(lookupClass.getPackageName(), lookupClass.getModule());
+            } else if ((modes & MethodHandles.Lookup.MODULE) != 0) {
+                effectiveCaller = lookupClass.getModule();
+            } else if (modes == MethodHandles.Lookup.PUBLIC || (modes & MethodHandles.Lookup.UNCONDITIONAL) != 0) {
+                effectiveCaller = null;
+            } else { // fallback
+                effectiveCaller = lookupClass;
+            }
+
+            return new CacheKey(target, method, params, effectiveCaller, modes);
+        }
+
+        @Override
+        public @NotNull String toString() {
+            return target.getName() + "#" + methodName + "(" + params.stream().map(Class::getName).collect(Collectors.joining(", ")) + ")";
+        }
+    }
     private record MethodHandleCtorPair<T>(MethodHandle handle, Constructor<T> ctor) {}
 }
