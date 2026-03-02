@@ -116,7 +116,6 @@ public class JlsReflectionHelperTest {
         // new GenericReceiver(aaa); // <-- this wouldn't work in java but does work in my reflection helper for some reason.
 
         GenericReceiver receiver = JlsReflectionHelper.getInstance(GenericReceiver.class, MethodHandles.lookup()).instantiate(arg); // this should throw but doesn't.
-        System.out.println(arg.getStaticType().getType());
         // assertNotNull(receiver);
         // assertEquals(1, receiver.items.size(), "Items: " +  receiver.items);
         // // assertNotNull(receiver.items.getFirst(), "First item is null");

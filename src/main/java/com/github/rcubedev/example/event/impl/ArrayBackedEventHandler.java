@@ -1,9 +1,13 @@
 package com.github.rcubedev.example.event.impl;
 
-import com.github.rcubedev.example.event.api.*;
+import com.github.rcubedev.example.event.api.Event;
+import com.github.rcubedev.example.event.api.EventHandler;
+import com.github.rcubedev.example.event.api.EventProcessor;
+import com.github.rcubedev.example.event.api.Priority;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -20,11 +24,17 @@ public class ArrayBackedEventHandler<E extends Event> extends EventHandler<E> {
     private final Object lock = new Object();
     private EventProcessor<E>[] listeners;
     private final Map<Priority, EventPhaseData<E>> phases = new EnumMap<>(Priority.class);
-    private final List<EventPhaseData<E>> sortedPhases = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    private EventPhaseData<E>[] sortedPhases = new EventPhaseData[0];
+    // Parents to merge listeners from, set at handler creation, never changed.
+    // Parent handlers should always be created before the child; superclasses are loaded before subclasses
+    @SuppressWarnings("unchecked")
+    private ArrayBackedEventHandler<? super E>[] parentHandlers = new ArrayBackedEventHandler[0];
 
+    // Children to notify when this handler's listeners change
+    @SuppressWarnings("unchecked")
+    private ArrayBackedEventHandler<? extends E>[] childHandlers = new ArrayBackedEventHandler[0];
     private volatile EventProcessor<E> invoker;
-    // Parent handlers that should also receive this handler's events
-    private final List<ArrayBackedEventHandler<? super E>> parentHandlers = new ArrayList<>();
 
     @SuppressWarnings("unchecked")
     public ArrayBackedEventHandler(Class<E> eventType, Class<EventProcessor<E>> processorType, Function<EventProcessor<E>[], EventProcessor<E>> invokerFactory) {
@@ -35,73 +45,24 @@ public class ArrayBackedEventHandler<E extends Event> extends EventHandler<E> {
     }
 
     /**
-     * Add a parent handler. Called when this handler is created and parent handlers exist.
+     * Add a parent handler. Called once at handler creation time.
      */
     void addParentHandler(ArrayBackedEventHandler<? super E> parentHandler) {
         synchronized (lock) {
-            parentHandlers.add(parentHandler);
+            parentHandlers = Arrays.copyOf(parentHandlers, parentHandlers.length + 1);
+            parentHandlers[parentHandlers.length - 1] = parentHandler;
+            parentHandler.addChildHandler(this);
         }
         update();
     }
 
-    public void update() {
-        this.invoker = createCompositeInvoker();
-    }
-
-    @SuppressWarnings("unchecked")
-    private EventProcessor<E> createCompositeInvoker() {
-        // Return an invoker that checks for parents at invoke time
-        // This allows parents to be registered after children
-        return event -> {
-            List<ArrayBackedEventHandler<? super E>> parents;
-            synchronized (lock) {
-                parents = new ArrayList<>(parentHandlers);
-            }
-
-            if (parents.isEmpty()) {
-                // No parents, just use the factory invoker
-                invokerFactory.apply(listeners).process(event);
-            } else {
-                // Invoke with priority handling for parents
-                invokeWithPriorities(event, parents);
-            }
-        };
-    }
-
-    @SuppressWarnings("unchecked")
-    private void invokeWithPriorities(E event, List<ArrayBackedEventHandler<? super E>> parents) {
-        // Collect all listeners from this handler and parents, grouped by priority
-        Map<Priority, List<EventProcessor<?>>> listenersByPriority = new EnumMap<>(Priority.class);
-
-        // Add this handler's listeners
-        addListenersByPriority(listenersByPriority);
-
-        // Add parent handlers' listeners
-        for (ArrayBackedEventHandler<? super E> parent : parents) {
-            parent.addListenersByPriority(listenersByPriority);
-        }
-
-        // Invoke in priority order
-        for (Priority priority : Priority.values()) {
-            List<EventProcessor<?>> listeners = listenersByPriority.get(priority);
-            if (listeners != null) {
-                for (EventProcessor<?> listener : listeners) {
-                    ((EventProcessor<E>) listener).process(event);
-                }
-            }
-        }
-    }
-
     /**
-     * Add this handler's listeners to the provided map, grouped by priority.
-     * Used by child handlers for priority-aware event dispatching.
+     * Add a child handler. Called by addParentHandler. Children are notified when this handler changes.
      */
-    void addListenersByPriority(Map<Priority, List<EventProcessor<?>>> map) {
+    private void addChildHandler(ArrayBackedEventHandler<? extends E> childHandler) {
         synchronized (lock) {
-            for (EventPhaseData<E> phase : sortedPhases) {
-                List<EventProcessor<?>> list = map.computeIfAbsent(phase.priority, k -> new ArrayList<>());
-                Collections.addAll(list, phase.listeners);
-            }
+            childHandlers = Arrays.copyOf(childHandlers, childHandlers.length + 1);
+            childHandlers[childHandlers.length - 1] = childHandler;
         }
     }
 
@@ -116,9 +77,9 @@ public class ArrayBackedEventHandler<E extends Event> extends EventHandler<E> {
         Objects.requireNonNull(listener, "Tried to register a null listener!");
 
         synchronized (lock) {
-            getOrCreatePhase(priority, true).addListener(listener);
-            rebuildInvoker(listeners.length + 1);
+            getOrCreatePhase(priority).addListener(listener);
         }
+        update();
     }
 
     @Override
@@ -127,43 +88,89 @@ public class ArrayBackedEventHandler<E extends Event> extends EventHandler<E> {
     }
 
     @SuppressWarnings("unchecked")
-    private EventPhaseData<E> getOrCreatePhase(Priority id, boolean sortIfCreate) {
+    private EventPhaseData<E> getOrCreatePhase(Priority id) {
         EventPhaseData<E> phase = phases.get(id);
 
         if (phase == null) {
             phase = new EventPhaseData<>(id, (Class<EventProcessor<E>>) listeners.getClass().getComponentType());
             phases.put(id, phase);
-            sortedPhases.add(phase);
-
-            if (sortIfCreate) {
-                sortedPhases.sort(Comparator.comparing(data -> data.priority));
-            }
+            sortedPhases = Arrays.copyOf(sortedPhases, sortedPhases.length + 1);
+            sortedPhases[sortedPhases.length - 1] = phase;
+            Arrays.sort(sortedPhases, Comparator.comparing(data -> data.priority));
         }
 
         return phase;
     }
 
-    private void rebuildInvoker(int newLength) {
-        // Rebuild handlers.
-        if (sortedPhases.size() == 1) {
-            // Special case with a single phase: use the array of the phase directly.
-            listeners = sortedPhases.getFirst().listeners;
-        } else {
-            @SuppressWarnings("unchecked")
-            EventProcessor<E>[] newHandlers = (EventProcessor<E>[]) Array.newInstance(listeners.getClass().getComponentType(), newLength);
-            int newHandlersIndex = 0;
+    /**
+     * Rebuild the merged flat listeners array from own phases + all parent phases, in priority order.
+     * Then notify children to do the same.
+     */
+    private void rebuildInvoker() {
+        ArrayBackedEventHandler<? super E>[] parents;
+        ArrayBackedEventHandler<? extends E>[] children;
 
-            for (EventPhaseData<E> existingPhase : sortedPhases) {
-                int length = existingPhase.listeners.length;
-                System.arraycopy(existingPhase.listeners, 0, newHandlers, newHandlersIndex, length);
-                newHandlersIndex += length;
-            }
-
-            listeners = newHandlers;
+        synchronized (lock) {
+            parents = parentHandlers;
+            children = childHandlers;
         }
 
-        // Rebuild invoker.
-        update();
+        if (parents.length == 0) {
+            // No parents — just use own sortedPhases directly
+            listeners = buildFlatArray(new EventPhaseData[][]{sortedPhases});
+        } else {
+            // Merge own sortedPhases with all parent sortedPhases in priority order
+            EventPhaseData<?>[][] allPhases = new EventPhaseData[1 + parents.length][];
+            allPhases[0] = sortedPhases;
+            for (int i = 0; i < parents.length; i++) {
+                allPhases[i + 1] = parents[i].sortedPhases;
+            }
+            listeners = buildFlatArray(allPhases);
+        }
+
+        invoker = invokerFactory.apply(listeners);
+
+        // Notify children to rebuild their merged arrays too
+        for (ArrayBackedEventHandler<? extends E> child : children) {
+            child.rebuildInvoker();
+        }
+    }
+
+    /**
+     * Merge multiple sorted phase arrays into a single flat listener array, in priority order.
+     */
+    @SuppressWarnings("unchecked")
+    private EventProcessor<E>[] buildFlatArray(EventPhaseData<?>[][] allPhases) {
+        // Use a temporary EnumMap to merge by priority across all phase arrays
+        Map<Priority, List<EventProcessor<?>>> merged = new EnumMap<>(Priority.class);
+
+        for (EventPhaseData<?>[] phases : allPhases) {
+            for (EventPhaseData<?> phase : phases) {
+                List<EventProcessor<?>> list = merged.computeIfAbsent(phase.priority, k -> new ArrayList<>());
+                Collections.addAll(list, phase.listeners);
+            }
+        }
+
+        // Count total
+        int total = merged.values().stream().mapToInt(List::size).sum();
+        EventProcessor<E>[] result = (EventProcessor<E>[]) Array.newInstance(
+                listeners.getClass().getComponentType(), total);
+
+        int i = 0;
+        for (Priority priority : Priority.values()) {
+            List<EventProcessor<?>> list = merged.get(priority);
+            if (list != null) {
+                for (EventProcessor<?> p : list) {
+                    result[i++] = (EventProcessor<E>) p;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    public void update() {
+        rebuildInvoker();
     }
 
     @Override
@@ -171,19 +178,26 @@ public class ArrayBackedEventHandler<E extends Event> extends EventHandler<E> {
         return invoker;
     }
 
-    /**
-     * Get the event type this handler manages.
-     */
+    @Override
     public Class<E> getEventType() {
         return eventType;
     }
 
-    /**
-     * Get all parent handlers registered with this handler.
-     */
     public List<ArrayBackedEventHandler<? super E>> getParentHandlers() {
         synchronized (lock) {
-            return new ArrayList<>(parentHandlers);
+            return new ArrayList<>(Arrays.asList(parentHandlers));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    void clearListeners() {
+        synchronized (lock) {
+            phases.clear();
+            sortedPhases = new EventPhaseData[0];
+            listeners = (EventProcessor<E>[]) Array.newInstance(
+                    listeners.getClass().getComponentType(), 0);
+            // parentHandlers and childHandlers intentionally NOT cleared; structural, not listener data
+        }
+        rebuildInvoker();
     }
 }

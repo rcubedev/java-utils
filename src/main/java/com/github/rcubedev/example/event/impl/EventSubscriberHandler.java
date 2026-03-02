@@ -52,6 +52,7 @@ public final class EventSubscriberHandler {
             }
 
             if (Modifier.isStatic(method.getModifiers()) == isStatic) {
+                // if (!(method.getParameterTypes()[0] == handler.getEventType())) continue;
                 registerListener(handler, target, method);
             } else {
                 if (isStatic) {
@@ -125,6 +126,7 @@ public final class EventSubscriberHandler {
                     "Method " + method + " has @SubscribeEvent annotation, " +
                             "but takes an argument that is not an Event subtype : " + paramType);
         }
+        if (paramType != handler.getEventType()) return; //no-op
 
         if (method.getReturnType() != void.class) {
             throw new IllegalArgumentException("@SubscribeEvent method must return void: " + method); // fixme what if i add something where event can decide w/o using event.setsomething & instead return type
@@ -142,10 +144,7 @@ public final class EventSubscriberHandler {
 
         EventProcessor<E> processor = event -> {
             // Skip cancelled events if configured
-            if (annotation.ignoreCancelled() && event instanceof Cancellable cancellable && cancellable.isCancelled()) {
-                return;
-            }
-
+            if (annotation.ignoreCancelled() && event instanceof Cancellable cancellable && cancellable.isCancelled()) return;
             try {
                 if (isStatic) handle.invoke(event);
                 else handle.invoke(target, event);

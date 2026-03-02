@@ -1,6 +1,7 @@
 package com.github.rcubedev.example.event;
 
 import com.github.rcubedev.example.event.api.*;
+import com.github.rcubedev.example.event.impl.EventHandlerFactoryImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
