@@ -1,62 +1,47 @@
 package com.github.rcubedev.example.event.impl;
 
 import com.github.rcubedev.example.event.api.Event;
-import java.util.*;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Registry that tracks the event type hierarchy for polymorphic dispatching.
- * Allows listeners registered on parent event handlers to receive events from child types.
+ * Allows listeners registered on parent event handlers to receive child events.
  */
 public final class EventHandlerInheritanceRegistry {
 
-    private static final Map<Class<? extends Event>, List<Class<? extends Event>>> parentCache = new HashMap<>();
-    private static final Object lock = new Object();
+    private static final Map<Class<? extends Event>, Class<? extends Event>[]> cache = new ConcurrentHashMap<>();
 
     private EventHandlerInheritanceRegistry() {}
 
     /**
-     * Get all parent event types for a given event type, in order from most specific to most general.
-     * For example, if you have: PlayerLoginEvent extends PlayerEvent extends CancellableEvent extends Event
-     * This returns [PlayerLoginEvent, PlayerEvent, CancellableEvent, Event]
-     *
-     * @param eventType The event type to get parents for
-     * @return List of event types from child to parent
+     * Get all event types in the hierarchy for a given event type,
+     * ordered from most specific (the type itself) to most general.
+     * <p>
+     * e.g. {@code [PlayerLoginEvent, PlayerEvent, Event]}
      */
-    public static List<Class<? extends Event>> getEventHierarchy(Class<? extends Event> eventType) {
-        List<Class<? extends Event>> cached = parentCache.get(eventType);
-        if (cached != null) {
-            return cached;
-        }
-
-        synchronized (lock) {
-            // Double-check after acquiring lock
-            cached = parentCache.get(eventType);
-            if (cached != null) {
-                return cached;
-            }
-
+    @SuppressWarnings("unchecked")
+    public static Class<? extends @NotNull Event>[] getEventHierarchy(Class<? extends Event> eventType) {
+        return cache.computeIfAbsent(eventType, type -> {
             List<Class<? extends Event>> hierarchy = new ArrayList<>();
-            Class<?> current = eventType;
-
+            Class<?> current = type;
             while (Event.class.isAssignableFrom(current)) {
-                @SuppressWarnings("unchecked")
                 Class<? extends Event> eventClass = (Class<? extends Event>) current;
                 hierarchy.add(eventClass);
                 current = current.getSuperclass();
             }
-
-            List<Class<? extends Event>> immutable = Collections.unmodifiableList(hierarchy);
-            parentCache.put(eventType, immutable);
-            return immutable;
-        }
+            return hierarchy.toArray(Class[]::new);
+        });
     }
 
-    /**
-     * Clear the inheritance cache. Useful for testing or if you dynamically modify class hierarchies.
-     */
     public static void clearCache() {
-        synchronized (lock) {
-            parentCache.clear();
-        }
+        cache.clear();
     }
 }

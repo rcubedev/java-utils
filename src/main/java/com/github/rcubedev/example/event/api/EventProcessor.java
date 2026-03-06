@@ -1,7 +1,9 @@
 package com.github.rcubedev.example.event.api;
 
 /**
- * Functional interface for dispatching or listening to an event.
+ * Functional interface for processing an event.
+ *
+ * @param <E> The event type
  */
 @FunctionalInterface
 public interface EventProcessor<E extends Event> {

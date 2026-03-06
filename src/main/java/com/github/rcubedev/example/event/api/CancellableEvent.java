@@ -7,14 +7,6 @@ public abstract class CancellableEvent extends Event implements Cancellable {
     private volatile boolean cancelled = false;
 
     /**
-     * {@inheritDoc}
-     *
-     * @return The handler instance.
-     */
-    @Override
-    public abstract EventHandler<? extends CancellableEvent> handler();
-
-    /**
      * Check if event is cancelled
      */
     @Override
