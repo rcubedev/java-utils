@@ -92,7 +92,7 @@ public class JlsReflectionHelper<T> {
             paramArray[i] = argTypes[i].getTypedClass();
         }
         List<Class<?>> params = List.of(paramArray);
-        CacheKey key = CacheKey.create(target, "new", params, lookup);
+        CacheKey key = CacheKey.create(target, "new", target, params, lookup);
         Optional<MethodHandle> handle = RESOLUTION_CACHE.computeIfAbsent(key, k -> Optional.ofNullable(findMethodHandle(target, args, lookup)));
 
         if (handle.isEmpty()) {
@@ -304,8 +304,8 @@ public class JlsReflectionHelper<T> {
 
     @ApiStatus.Internal
     // don't instantiate directly, use factory
-    public record CacheKey(Class<?> target, String methodName, List<Class<?>> params, Object effectiveCaller, int lookupModes) {
-        public static CacheKey create(Class<?> target, String method, List<Class<?>> params, MethodHandles.Lookup lookup) {
+    public record CacheKey(Class<?> target, String methodName, Class<?> returnType, List<Class<?>> params, Object effectiveCaller, int lookupModes) {
+        public static CacheKey create(Class<?> target, String method, Class<?> returnType, List<Class<?>> params, MethodHandles.Lookup lookup) {
             int modes = lookup.lookupModes();
             Class<?> lookupClass = lookup.lookupClass();
             Object effectiveCaller;
@@ -322,12 +322,12 @@ public class JlsReflectionHelper<T> {
                 effectiveCaller = lookupClass;
             }
 
-            return new CacheKey(target, method, params, effectiveCaller, modes);
+            return new CacheKey(target, method, returnType, params, effectiveCaller, modes);
         }
 
         @Override
         public @NotNull String toString() {
-            return target.getName() + "#" + methodName + "(" + params.stream().map(Class::getName).collect(Collectors.joining(", ")) + ")";
+            return target.getName() + "#" + methodName + "(" + params.stream().map(Class::getName).collect(Collectors.joining(", ")) + ")" + returnType.getName();
         }
     }
     private record MethodHandleCtorPair<T>(MethodHandle handle, Constructor<T> ctor) {}
