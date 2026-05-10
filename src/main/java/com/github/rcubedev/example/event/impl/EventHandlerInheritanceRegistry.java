@@ -4,15 +4,13 @@ import com.github.rcubedev.example.event.api.Event;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Registry that tracks the event type hierarchy for polymorphic dispatching.
+ * <p>
  * Allows listeners registered on parent event handlers to receive child events.
  */
 public final class EventHandlerInheritanceRegistry {
@@ -28,8 +26,8 @@ public final class EventHandlerInheritanceRegistry {
      * e.g. {@code [PlayerLoginEvent, PlayerEvent, Event]}
      */
     @SuppressWarnings("unchecked")
-    public static Class<? extends @NotNull Event>[] getEventHierarchy(Class<? extends Event> eventType) {
-        return cache.computeIfAbsent(eventType, type -> {
+    public static <T extends Event> Class<? super @NotNull T>[] getEventHierarchy(Class<T> eventType) {
+        return (Class<? super T>[]) cache.computeIfAbsent(eventType, type -> {
             List<Class<? extends Event>> hierarchy = new ArrayList<>();
             Class<?> current = type;
             while (Event.class.isAssignableFrom(current)) {
@@ -39,9 +37,5 @@ public final class EventHandlerInheritanceRegistry {
             }
             return hierarchy.toArray(Class[]::new);
         });
-    }
-
-    public static void clearCache() {
-        cache.clear();
     }
 }

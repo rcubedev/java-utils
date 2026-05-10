@@ -86,7 +86,7 @@ public abstract class AbstractDualElementValue<A, B, S extends AbstractDualEleme
         } catch (NoSuchElementException firstEx) { // fixme change when the ex is changed
             try {
                 logFallback(this.getClass().getTypeName(), value.getClass().getTypeName(), typeA.getClass().getGenericSuperclass().getTypeName());
-                return invokeMatchingConstructor(Argument.Builder.of(value, typeA), Argument.Builder.of(typeA, new TypedClass<>(){}), Argument.Builder.of(getTypeB(), new TypedClass<>(){}), Argument.Builder.of(true));
+                return invokeMatchingConstructor(Argument.Builder.of(value, typeA), Argument.Builder.of(typeA, new TypedClass<>(){}), Argument.Builder.of(getTypeB(), new TypedClass<>(){}));
             } catch (NoSuchElementException fallbackEx) {
                 if (allowCtorFallback()) {
                     // Fallback allowed, throw the fallback (with firstEx suppressed)
@@ -118,7 +118,7 @@ public abstract class AbstractDualElementValue<A, B, S extends AbstractDualEleme
         } catch (NoSuchElementException firstEx) { // fixme change when the ex is changed
             try {
                 logFallback(this.getClass().getTypeName(), value.getClass().getTypeName(), typeB.getClass().getGenericSuperclass().getTypeName());
-                return invokeMatchingConstructor(Argument.Builder.of(value, typeB), Argument.Builder.of(getTypeA(), new TypedClass<>(){}), Argument.Builder.of(typeB, new TypedClass<>(){}), Argument.Builder.of(false));
+                return invokeMatchingConstructor(Argument.Builder.of(value, typeB), Argument.Builder.of(getTypeA(), new TypedClass<>(){}), Argument.Builder.of(typeB, new TypedClass<>(){}));
             } catch (NoSuchElementException fallbackEx) {
                 if (allowCtorFallback()) {
                     // Fallback allowed, throw the fallback (with firstEx suppressed)

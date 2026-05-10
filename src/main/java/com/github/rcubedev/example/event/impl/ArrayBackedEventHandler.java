@@ -17,6 +17,8 @@ import java.util.Arrays;
  *
  * @param <E> The event type
  */
+// fixme add pub api
+// todo maybe add the invokerFactory stuff again which gives a EventProcessor<E>[] and returns EventProcessor<E>; merges them
 public final class ArrayBackedEventHandler<E extends Event> {
 
     private final Class<E> eventType;
@@ -47,6 +49,30 @@ public final class ArrayBackedEventHandler<E extends Event> {
         }
     }
 
+    public boolean removeListener(EventProcessor<E> listener) {
+        synchronized (lock) {
+            int index = -1;
+            for (int i = 0; i < listeners.length; i++) {
+                if (listeners[i] == listener) {
+                    index = i;
+                    break;
+                }
+            }
+            if (index == -1) return false;
+
+            EventProcessor<E>[] newArray = (EventProcessor<E>[]) new EventProcessor[listeners.length - 1];
+            if (index > 0) {
+                System.arraycopy(listeners, 0, newArray, 0, index);
+            }
+            if (index < listeners.length - 1) {
+                System.arraycopy(listeners, index + 1, newArray, index, listeners.length - index - 1);
+            }
+            listeners = newArray;
+            rebuildInvoker();
+            return true;
+        }
+    }
+
     /**
      * Rebuild the merged invoker from all registered listeners.
      * Called after every {@link #addListener}.
@@ -69,7 +95,7 @@ public final class ArrayBackedEventHandler<E extends Event> {
     public void clear() {
         synchronized (lock) {
             listeners = (EventProcessor<E>[]) new EventProcessor[0];
-            invoker = event -> {};
+            rebuildInvoker();
         }
     }
 

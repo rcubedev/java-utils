@@ -24,9 +24,13 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface SubscribeEvent {
-    /** Priority of this listener. */
+    /**
+     * The {@link Priority} of this listener.
+     */
     Priority priority() default Priority.NORMAL;
 
-    /** If true, this listener will not be called for cancelled events. */
+    /**
+     * If true, this listener will not be called for cancelled events.
+     */
     boolean ignoreCancelled() default false;
 }

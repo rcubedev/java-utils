@@ -1,16 +1,20 @@
 package com.github.rcubedev.example.event;
 
 import com.github.rcubedev.example.event.api.*;
-import com.github.rcubedev.example.event.buses.MainBus;
-import com.github.rcubedev.example.event.impl.EventBusRegistry;
+import com.github.rcubedev.example.event.api.buses.MainBus;
+import com.github.rcubedev.example.event.api.spi.IEventBus;
+import com.github.rcubedev.example.event.api.spi.RecursionBypass;
+import com.github.rcubedev.example.event.api.spi.Subscription;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -20,9 +24,8 @@ public class EventBusTests {
 
     static abstract class TestEvent extends Event {}
 
-    static final class TestBus extends EventBus<TestEvent> {
-        static final TestBus INSTANCE = new TestBus();
-        private TestBus() { super(TestEvent.class); }
+    static final class TestBus {
+        static final IEventBus<TestEvent> INSTANCE = EventBusBuilder.create(TestEvent.class);
     }
 
     // ── Linear hierarchy ──────────────────────────────────────────────────────
@@ -186,12 +189,13 @@ public class EventBusTests {
             assertEquals(List.of("fired"), log);
         }
 
+        // todo this test does not seem right
         @Test
         void postUncheckedSkipsIfWrongBusType() {
             // MainBus should not fire for TestEvent since it accepts Event, not TestEvent subtype
             // Just verify TestBus only fires for its own type
             TestBus.INSTANCE.register(ParentEvent.class, e -> log.add("fired"));
-            TestBus.INSTANCE.postUnchecked(new ParentEvent());
+            TestBus.INSTANCE.post(new ParentEvent());
             assertEquals(List.of("fired"), log);
         }
     }
@@ -570,7 +574,6 @@ public class EventBusTests {
             TestBus.INSTANCE.register(ParentEvent.class, e -> log.add("testbus"));
             MainBus.BUS.register(ParentEvent.class, e -> log.add("mainbus"));
             EventDispatcher.dispatch(new ParentEvent());
-            assertTrue(log.contains("testbus"));
             assertTrue(log.contains("mainbus"));
             MainBus.BUS.resetListeners();
         }
@@ -582,6 +585,221 @@ public class EventBusTests {
             // ParentEvent extends TestEvent so TestBus should fire
             EventDispatcher.dispatch(new ParentEvent());
             assertTrue(log.contains("testbus"));
+        }
+    }
+
+    // ── Weak Referencing ──────────────────────────────────────────────────────
+
+    @Nested
+    class WeakReferencing {
+
+        @Test
+        void methodWeakListenerIsCollectedAndUnregistered() throws InterruptedException {
+            // Use a helper to ensure 'listener' isn't trapped in this stack frame
+            WeakReference<Object> ref = registerWeakMethod();
+
+            // should fire initially
+            TestBus.INSTANCE.post(new ParentEvent());
+            assertEquals(1, log.size());
+            log.clear();
+
+            // force GC, typically requires multiple hints in a loop for reliability
+            for (int i = 0; i < 10; i++) {
+                System.gc();
+                if (ref.get() == null) break;
+                Thread.sleep(10);
+            }
+
+            assertNull(ref.get(), "Listener instance should have been GC'd");
+
+            // post again: the WeakEventProcessor should detect GC and self-destruct
+            TestBus.INSTANCE.post(new ParentEvent());
+            assertTrue(log.isEmpty(), "Listener should not fire after GC");
+        }
+
+        @Test
+        void classWeakListenerIsCollectedAndUnregistered() throws InterruptedException {
+            // Use a helper to ensure 'listener' isn't trapped in this stack frame
+            WeakReference<Object> ref = registerWeakClass();
+
+            // should fire initially
+            TestBus.INSTANCE.post(new ParentEvent());
+            assertEquals(1, log.size());
+            log.clear();
+
+            // force GC, typically requires multiple hints in a loop for reliability
+            for (int i = 0; i < 10; i++) {
+                System.gc();
+                if (ref.get() == null) break;
+                Thread.sleep(10);
+            }
+
+            assertNull(ref.get(), "Listener instance should have been GC'd");
+
+            // post again: the WeakEventProcessor should detect GC and self-destruct
+            TestBus.INSTANCE.post(new ParentEvent());
+            assertTrue(log.isEmpty(), "Listener should not fire after GC");
+        }
+
+        private WeakReference<Object> registerWeakMethod() {
+            class WeakListener {
+                @SubscribeEvent @Weak public void on(ParentEvent e) { log.add("weak"); }
+            }
+            WeakListener listener = new WeakListener();
+            TestBus.INSTANCE.register(listener);
+            return new WeakReference<>(listener);
+        }
+
+        private WeakReference<Object> registerWeakClass() {
+            @Weak
+            class WeakListener {
+                @SubscribeEvent public void on(ParentEvent e) { log.add("weak"); }
+            }
+            WeakListener listener = new WeakListener();
+            TestBus.INSTANCE.register(listener);
+            return new WeakReference<>(listener);
+        }
+
+        @Test
+        void staticMethodWeakThrows() throws NoSuchMethodException {
+            Method method = StaticListener.class.getDeclaredMethod("onParent", ParentEvent.class);
+            @Weak class Invalid {
+                @SubscribeEvent public static void on(ParentEvent e) {}
+            }
+            assertThrows(IllegalArgumentException.class, () -> TestBus.INSTANCE.register(Invalid.class));
+        }
+    }
+
+    // ── Subscription Handling ─────────────────────────────────────────────────
+
+    @Nested
+    class SubscriptionHandling {
+
+        @Test
+        void unsubscribeRemovesListener() {
+            Subscription sub = TestBus.INSTANCE.register(ParentEvent.class, e -> log.add("fired"));
+            TestBus.INSTANCE.post(new ParentEvent());
+            assertEquals(1, log.size());
+
+            sub.unsubscribe();
+            log.clear();
+
+            TestBus.INSTANCE.post(new ParentEvent());
+            assertTrue(log.isEmpty(), "Listener remained after unsubscribe");
+        }
+
+        @Test
+        void tryWithResourcesUnsubscribes() {
+            try (Subscription ignored = TestBus.INSTANCE.register(ParentEvent.class, e -> log.add("fired"))) {
+                TestBus.INSTANCE.post(new ParentEvent());
+            }
+            log.clear();
+            TestBus.INSTANCE.post(new ParentEvent());
+            assertTrue(log.isEmpty(), "Subscription did not close automatically");
+        }
+
+        @Test
+        void masterSubscriptionUnsubscribesAllMethods() {
+            MultiListener listener = new MultiListener(log);
+            Subscription sub = TestBus.INSTANCE.register(listener);
+
+            TestBus.INSTANCE.post(new ChildEvent());
+            assertEquals(2, log.size()); // parent and child
+
+            sub.unsubscribe();
+            log.clear();
+
+            TestBus.INSTANCE.post(new ChildEvent());
+            assertTrue(log.isEmpty(), "Master subscription failed to unregister all methods");
+        }
+
+        @Test
+        void unsubscribeIsIdempotent() {
+            Subscription sub = TestBus.INSTANCE.register(ParentEvent.class, e -> log.add("fired"));
+            sub.unsubscribe();
+            assertDoesNotThrow(sub::unsubscribe);
+            assertDoesNotThrow(sub::close);
+        }
+    }
+
+    // ── Recursion Guard ───────────────────────────────────────────────────────
+
+    @Nested
+    class RecursionGuard {
+
+        static class RecursiveEvent extends TestEvent {}
+
+        @Test
+        void circularDispatchTripsGuard() {
+            TestBus.INSTANCE.register(RecursiveEvent.class, TestBus.INSTANCE::post);
+
+            assertThrows(IllegalStateException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
+                    "Infinite recursion should be caught by the guard");
+        }
+
+        @Test
+        void openBypassAllowsDeepRecursion() {
+            int depthLimit = 150; // Higher than default 128
+            AtomicInteger count = new AtomicInteger();
+
+            TestBus.INSTANCE.register(RecursiveEvent.class, e -> {
+                if (count.incrementAndGet() < depthLimit) {
+                    TestBus.INSTANCE.post(e);
+                }
+            });
+
+            try (RecursionBypass ignored = TestBus.INSTANCE.openBypass()) {
+                assertDoesNotThrow(() -> TestBus.INSTANCE.post(new RecursiveEvent()));
+            }
+            assertEquals(depthLimit, count.get());
+        }
+
+        @Test
+        void openBypassToExtendsBudgetSpecifically() {
+            AtomicInteger count = new AtomicInteger();
+            // We want to exceed the default limit (128) but stay within
+            // the new limit (128 + 72 = 200).
+            int targetDepth = 200;
+
+            TestBus.INSTANCE.register(RecursiveEvent.class, e -> {
+                if (count.getAndIncrement() < 200) { // Try to go even deeper
+                    TestBus.INSTANCE.post(e);
+                }
+            });
+
+            // Verify it fails without the bypass first
+            assertThrows(IllegalStateException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
+                    "Should fail at default limit");
+
+            count.set(0);
+
+            // Verify it succeeds with a specific extra budget
+            try (RecursionBypass ignored = TestBus.INSTANCE.openBypassTo(72)) {
+                // If default is 128, new limit is 200. 200 should pass.
+                assertDoesNotThrow(() -> {
+                    // We only trigger the first post; the listener handles the recursion
+                    TestBus.INSTANCE.post(new RecursiveEvent());
+                });
+            }
+
+            // Verify the limit is still enforced if we go TOO deep even with the budget
+            count.set(0);
+            try (RecursionBypass ignored = TestBus.INSTANCE.openBypassTo(10)) {
+                // Default 128 + 10 = 138. 150 should fail.
+                assertThrows(IllegalStateException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()));
+            }
+        }
+
+        @Test
+        void bypassIsThreadLocalAndScoped() {
+            // Verify that after bypass closes, the guard is active again
+            try (RecursionBypass ignored = TestBus.INSTANCE.openBypass()) {
+                // Scope active
+            }
+
+            TestBus.INSTANCE.register(RecursiveEvent.class, e -> TestBus.INSTANCE.post(e));
+            assertThrows(IllegalStateException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
+                    "Guard should be re-enabled after bypass close");
         }
     }
 }

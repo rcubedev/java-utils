@@ -7,6 +7,8 @@ import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.ApiStatus;
@@ -26,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
  * A high-fidelity reflection utility that emulates JLS §15.9 and §15.12.
  * Designed to mirror javac's compile-time overload resolution at runtime.
  */
+// todo needs optimizing
 public class JlsReflectionHelper<T> {
 
     private static final Map<CacheKey, Optional<MethodHandle>> RESOLUTION_CACHE = new ConcurrentHashMap<>(); // fixme swap to weak keys and cache with expiry?
@@ -96,7 +100,8 @@ public class JlsReflectionHelper<T> {
         Optional<MethodHandle> handle = RESOLUTION_CACHE.computeIfAbsent(key, k -> Optional.ofNullable(findMethodHandle(target, args, lookup)));
 
         if (handle.isEmpty()) {
-            throw new NoSuchElementException("No JLS-compliant constructor found for " + target.getName()); // fixme make an ex
+            // throw new NoSuchElementException("No JLS-compliant constructor found for " + target.getName()); // fixme make an ex
+            throw new NoSuchElementException("No JLS-compliant constructor found for " + target.getName() + ". Arguments: " + Arrays.stream(args).map(a -> a.getStaticType().toString()).collect(Collectors.joining(", "))); // fixme make an ex
         }
 
         return (T) invoke(handle.get(), args);
@@ -181,7 +186,7 @@ public class JlsReflectionHelper<T> {
     private static boolean isCompatible(@NotNull Type target, @NotNull TypedClass<?> source, boolean allowBox) {
         Class<?> sourceRaw = source.getTypedClass();
 
-        // Handle Primitives/Boxing first as TypedClass usually wraps them
+        // Handle Primitives/Boxing first as TypedClass wraps them
         if (target instanceof Class<?> targetClass && targetClass.isPrimitive()) {
             if (sourceRaw == targetClass) return true;
             return WIDENING_PRIMITIVE.getOrDefault(sourceRaw, Collections.emptySet()).contains(targetClass);
@@ -193,6 +198,10 @@ public class JlsReflectionHelper<T> {
         }
 
         // Phase 1: Only widening and identity (strict)
+        // System.out.println("Getting raw class for type: " + target);
+        // System.out.println("Type raw class: " + getRawClass(target));
+        // System.out.println("Getting raw class for source: " + source);
+        // System.out.println("Source raw class: " + sourceRaw);
         return isPhase1Compatible(getRawClass(target), sourceRaw);
     }
 
@@ -210,6 +219,7 @@ public class JlsReflectionHelper<T> {
                 rawArgs[i] = args[i].get();
             }
 
+            // todo use spreader
             if (!handle.isVarargsCollector()) return handle.invokeWithArguments(rawArgs);
             int paramCount = handle.type().parameterCount();
 
@@ -291,8 +301,12 @@ public class JlsReflectionHelper<T> {
     }
 
     private static Class<?> getRawClass(Type type) {
+        // todo use TypedClass#getRawType
         if (type instanceof Class<?> cls) return cls;
-        if (type instanceof ParameterizedType pt) return (Class<?>) pt.getRawType();
+        if (type instanceof ParameterizedType pt) return getRawClass(pt.getRawType());
+        if (type instanceof GenericArrayType gat) return getRawClass(gat.getGenericComponentType());
+        if (type instanceof WildcardType wt) return getRawClass(wt.getUpperBounds()[0]);
+        if (type instanceof TypeVariable<?> tv) return getRawClass(tv.getBounds()[0]); // todo we should ensure all bounds conform
         return Object.class; // Fallback for complex captures/variables in Phase 1
     }
 
