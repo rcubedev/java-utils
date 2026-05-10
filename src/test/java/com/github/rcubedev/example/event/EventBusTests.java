@@ -2,6 +2,7 @@ package com.github.rcubedev.example.event;
 
 import com.github.rcubedev.example.event.api.*;
 import com.github.rcubedev.example.event.api.buses.MainBus;
+import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.api.spi.RecursionBypass;
 import com.github.rcubedev.example.event.api.spi.Subscription;
@@ -106,6 +107,7 @@ public class EventBusTests {
     }
 
     static class NoAnnotationListener {
+        @SuppressWarnings("unused")
         public void onParent(ParentEvent e) {}
     }
 
@@ -573,17 +575,17 @@ public class EventBusTests {
             // TestBus and MainBus both registered — dispatch should hit both
             TestBus.INSTANCE.register(ParentEvent.class, e -> log.add("testbus"));
             MainBus.BUS.register(ParentEvent.class, e -> log.add("mainbus"));
-            EventDispatcher.dispatch(new ParentEvent());
+            new ParentEvent().dispatch();
             assertTrue(log.contains("mainbus"));
             MainBus.BUS.resetListeners();
         }
 
         @Test
         void dispatchOnlyFiresBusesWhoseTypeMatches() {
-            // TestBus requires TestEvent subtypes — posting a raw Event won't fire it
+            // TestBus requires TestEvent subtype; posting a raw Event won't fire it
             TestBus.INSTANCE.register(ParentEvent.class, e -> log.add("testbus"));
             // ParentEvent extends TestEvent so TestBus should fire
-            EventDispatcher.dispatch(new ParentEvent());
+            new ParentEvent().dispatch();
             assertTrue(log.contains("testbus"));
         }
     }
@@ -661,8 +663,7 @@ public class EventBusTests {
         }
 
         @Test
-        void staticMethodWeakThrows() throws NoSuchMethodException {
-            Method method = StaticListener.class.getDeclaredMethod("onParent", ParentEvent.class);
+        void staticMethodWeakThrows() {
             @Weak class Invalid {
                 @SubscribeEvent public static void on(ParentEvent e) {}
             }
@@ -733,7 +734,7 @@ public class EventBusTests {
         void circularDispatchTripsGuard() {
             TestBus.INSTANCE.register(RecursiveEvent.class, TestBus.INSTANCE::post);
 
-            assertThrows(IllegalStateException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
+            assertThrows(EventStackOverflowException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
                     "Infinite recursion should be caught by the guard");
         }
 
@@ -762,13 +763,13 @@ public class EventBusTests {
             int targetDepth = 200;
 
             TestBus.INSTANCE.register(RecursiveEvent.class, e -> {
-                if (count.getAndIncrement() < 200) { // Try to go even deeper
+                if (count.getAndIncrement() < targetDepth) { // Try to go even deeper
                     TestBus.INSTANCE.post(e);
                 }
             });
 
             // Verify it fails without the bypass first
-            assertThrows(IllegalStateException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
+            assertThrows(EventStackOverflowException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
                     "Should fail at default limit");
 
             count.set(0);
@@ -786,7 +787,7 @@ public class EventBusTests {
             count.set(0);
             try (RecursionBypass ignored = TestBus.INSTANCE.openBypassTo(10)) {
                 // Default 128 + 10 = 138. 150 should fail.
-                assertThrows(IllegalStateException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()));
+                assertThrows(EventStackOverflowException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()));
             }
         }
 
@@ -797,8 +798,8 @@ public class EventBusTests {
                 // Scope active
             }
 
-            TestBus.INSTANCE.register(RecursiveEvent.class, e -> TestBus.INSTANCE.post(e));
-            assertThrows(IllegalStateException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
+            TestBus.INSTANCE.register(RecursiveEvent.class, TestBus.INSTANCE::post);
+            assertThrows(EventStackOverflowException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
                     "Guard should be re-enabled after bypass close");
         }
     }

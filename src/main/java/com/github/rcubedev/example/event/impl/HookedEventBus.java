@@ -7,6 +7,7 @@ import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventBusBuilder.EventBusConfig;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
+import com.github.rcubedev.example.event.api.hooks.ErrorHandler;
 import com.github.rcubedev.example.event.api.spi.RecursionBypass;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
@@ -36,8 +37,8 @@ public final class HookedEventBus<B extends Event> implements IEventBus<B> {
         try {
             delegate.post(event);
         } catch (Throwable t) {
-            BiConsumer<B, Throwable> errorHandler = config.error();
-            if (errorHandler != null) config.error().accept(event, t);
+            ErrorHandler<B> errorHandler = config.error();
+            if (errorHandler != null) errorHandler.handle(event, t);
             else {
                 throw t;
             }

@@ -12,7 +12,7 @@ import com.github.rcubedev.example.event.api.spi.Subscription;
 public final class WeakEventProcessor<T, E extends Event> implements EventProcessor<E>, Linkable {
     private final WeakReference<T> targetRef;
     private final UnboundProcessor<T, E> invoker; // this should be implemented via metafactory if using EventSubscriberHandler
-    private Subscription subscription; // Set after registration
+    private volatile Subscription subscription; // Set after registration
 
     public WeakEventProcessor(T target, UnboundProcessor<T, E> invoker) {
         this.targetRef = new WeakReference<>(target);
@@ -26,7 +26,7 @@ public final class WeakEventProcessor<T, E extends Event> implements EventProces
     @Override
     public void process(E event) {
         Subscription sub = this.subscription;
-        if (sub == null) return; // todo maybe log instead of just bailing
+        if (sub == null) throw new IllegalStateException("Event registered before subscription set.");
 
         T target = targetRef.get();
         if (target != null) {

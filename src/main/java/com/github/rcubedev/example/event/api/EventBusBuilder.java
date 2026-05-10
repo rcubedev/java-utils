@@ -1,12 +1,12 @@
 package com.github.rcubedev.example.event.api;
 
+import com.github.rcubedev.example.event.api.hooks.ErrorHandler;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.impl.EventBus;
 import com.github.rcubedev.example.event.impl.HookedEventBus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -18,7 +18,7 @@ public final class EventBusBuilder<B extends Event> {
     private final @NotNull Class<B> busType;
     private @Nullable Consumer<B> beforeDispatch;
     private @Nullable Consumer<B> afterDispatch;
-    private @Nullable BiConsumer<B, Throwable> errorHandler;
+    private @Nullable ErrorHandler<B> errorHandler;
     private int maxDepth = 128;
 
     private EventBusBuilder(@NotNull Class<B> busType) {
@@ -79,7 +79,7 @@ public final class EventBusBuilder<B extends Event> {
      * @param handler the error consumer, receiving the event and the thrown exception
      * @return this builder
      */
-    public @NotNull EventBusBuilder<B> errorHandler(@NotNull BiConsumer<B, Throwable> handler) {
+    public @NotNull EventBusBuilder<B> errorHandler(@NotNull ErrorHandler<B> handler) {
         this.errorHandler = handler;
         return this;
     }
@@ -128,7 +128,7 @@ public final class EventBusBuilder<B extends Event> {
      * @param <B> the base event type
      */
     public record EventBusConfig<B extends Event>(@Nullable Consumer<B> before, @Nullable Consumer<B> after,
-                                                  @Nullable BiConsumer<B, Throwable> error, int maxDepth) {
+                                                  @Nullable ErrorHandler<B> error, int maxDepth) {
         public boolean hasHooks() {
             return before != null || after != null || error != null;
         }

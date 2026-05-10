@@ -3,6 +3,7 @@ package com.github.rcubedev.example.event.impl;
 import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
+import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
 import com.github.rcubedev.example.event.api.spi.RecursionBypass;
 import com.github.rcubedev.example.event.api.SubscribeEvent;
 import com.github.rcubedev.example.event.api.spi.Subscription;
@@ -17,7 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
-import java.util.function.Supplier;
 
 /**
  * Concrete implementation of {@link IEventBus}.
@@ -78,12 +78,6 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     }
 
     public @NotNull IEventBus<B> register() {
-        Supplier<RuntimeException> exSupplier = () -> new IllegalStateException("Attempted to register the bus when it is already registered!");
-        if (registered) throw exSupplier.get();
-        synchronized (rebuildLock) { // todo should likely use a different lock
-            if (registered) throw exSupplier.get();
-            registered = true;
-        }
         EventBusRegistry.register(this);
         return this;
     }
@@ -92,8 +86,9 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     public <E extends B> void post(E event) {
         int currentDepth = depth.get();
 
-        if (currentDepth > maxStackDepth) throw new StackOverflowGuardExcepption(
-                "Stack Overflow Guard: Event recursion too deep. Check for circular posts (e.g. A posts B, B posts A).");
+        if (currentDepth > maxStackDepth) throw new EventStackOverflowException(
+                "Event recursion too deep (currentDepth: " + currentDepth + ", maxStackDepth: " + maxStackDepth + ")." +
+                        "Check for circular posts (e.g. A posts B, B posts A).", currentDepth, maxStackDepth);
         try {
             depth.set(currentDepth + 1);
             dispatchTable.dispatch(event);
@@ -309,7 +304,7 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
             }
         }
 
-        System.out.println("Flat checking: " + flatChecking);
+        // System.out.println("Flat checking: " + flatChecking);
         dispatchTable = new DispatchTable(
                 flatProcessors.toArray(EventProcessor[]::new),
                 flatTypes.toArray(Class[]::new),
