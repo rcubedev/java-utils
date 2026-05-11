@@ -24,6 +24,7 @@ import com.github.rcubedev.example.event.api.spi.Registrar;
 /**
  * Handles registration of {@link SubscribeEvent @SubscribeEvent} methods to a {@link IEventBus}.
  */
+// todo this violates SRP
 public final class EventSubscriberHandler {
 
     private static final Map<MethodKey, HandlerFactory> CLASS_METAFACTORIES = new ConcurrentHashMap<>();

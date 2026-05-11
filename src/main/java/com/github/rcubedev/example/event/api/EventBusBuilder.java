@@ -10,8 +10,23 @@ import org.jetbrains.annotations.Nullable;
 import java.util.function.Consumer;
 
 /**
- * Builder for creating {@link IEventBus} instances.
- * @param <B> The base event type for the bus
+ * A builder for creating {@link IEventBus} instances.
+ * <p>
+ * This builder allows for configuration of an event bus, including
+ * lifecycle hooks, error handling, and recursion safety limits.
+ * <p>
+ * <b>Example Usage:</b>
+ * <pre>{@code
+ * IEventBus<MyBaseEvent> bus = EventBusBuilder.builder(MyBaseEvent.class)
+ *         .maxDepth(64)
+ *         .beforeDispatch(event -> System.out.println("Dispatching: " + event))
+ *         .errorHandler((event, error) -> logger.error("Failed to post " + event.getClass().getName(), error))
+ *         .build();
+ * }</pre>
+ *
+ * @param <B> The base event type for the bus. All events posted to the resulting
+ * bus must be a subclass of this type.
+ * @see IEventBus
  */
 public final class EventBusBuilder<B extends Event> {
 

@@ -1,10 +1,11 @@
 package com.github.rcubedev.example.event.api;
 
-import com.github.rcubedev.example.event.impl.EventBusRegistry;
+import com.github.rcubedev.example.event.api.spi.IEventBus;
 
 /**
  * Base class for all events.
  * @implNote If cancellable, implement {@link Cancellable}
+ * @see IEventBus
  */
 public abstract class Event {
 
@@ -17,6 +18,6 @@ public abstract class Event {
      * on a specific bus instance.
      */
     public final void dispatch() {
-        EventBusRegistry.dispatch(this);
+        EventBusRegistry.getInstance().dispatch(this);
     }
 }

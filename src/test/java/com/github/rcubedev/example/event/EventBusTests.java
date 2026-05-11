@@ -227,6 +227,8 @@ public class EventBusTests {
             TestBus.INSTANCE.register(ParentEvent.class, e -> log.add("parent"));
             TestBus.INSTANCE.register(ChildEvent.class, e -> log.add("child"));
             TestBus.INSTANCE.register(GrandchildEvent.class, e -> log.add("grandchild"));
+            TestBus.INSTANCE.register(TestEvent.class, e -> {});
+            System.out.println("GrandchildEvent registered");
             TestBus.INSTANCE.post(new GrandchildEvent());
             assertEquals(List.of("parent", "child", "grandchild"), log);
         }
@@ -763,7 +765,9 @@ public class EventBusTests {
             int targetDepth = 200;
 
             TestBus.INSTANCE.register(RecursiveEvent.class, e -> {
-                if (count.getAndIncrement() < targetDepth) { // Try to go even deeper
+                // try to go even deeper. atomic is 0 indexed so use incr&get to make sure it fires targetDepth times
+                // System.out.println("Current recursion count: " + (count.get() + 1));
+                if (count.incrementAndGet() < targetDepth) {
                     TestBus.INSTANCE.post(e);
                 }
             });
@@ -772,6 +776,7 @@ public class EventBusTests {
             assertThrows(EventStackOverflowException.class, () -> TestBus.INSTANCE.post(new RecursiveEvent()),
                     "Should fail at default limit");
 
+            // System.out.println("Resetting recursion. Count: " + count.get());
             count.set(0);
 
             // Verify it succeeds with a specific extra budget
@@ -784,6 +789,7 @@ public class EventBusTests {
             }
 
             // Verify the limit is still enforced if we go TOO deep even with the budget
+            // System.out.println("Resetting recursion 2. Count: " + count.get());
             count.set(0);
             try (RecursionBypass ignored = TestBus.INSTANCE.openBypassTo(10)) {
                 // Default 128 + 10 = 138. 150 should fail.

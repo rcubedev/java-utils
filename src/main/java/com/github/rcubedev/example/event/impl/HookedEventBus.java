@@ -1,6 +1,5 @@
 package com.github.rcubedev.example.event.impl;
 
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import com.github.rcubedev.example.event.api.Event;

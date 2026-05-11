@@ -1,7 +1,7 @@
 package com.github.rcubedev.example.event.api.exceptions;
 
 /**
- * Thrown when the {@link com.github.rcubedev.example.event.api.spi.IEventBus}
+ * Thrown when the {@link com.github.rcubedev.example.event.api.spi.IEventBus IEventBus}
  * detects a recursion depth exceeding its configured safety limit.
  * <p>
  * This usually indicates a circular event post (e.g., Event A posts Event B, 

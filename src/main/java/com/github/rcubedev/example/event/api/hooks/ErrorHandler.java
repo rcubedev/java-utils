@@ -4,7 +4,6 @@ import org.jetbrains.annotations.NotNull;
 
 @FunctionalInterface
 public interface ErrorHandler<B> {
-
     /**
      * Handles an exception thrown during event dispatch.
      * <p>

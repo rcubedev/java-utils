@@ -1,6 +1,7 @@
 package com.github.rcubedev.example.event.impl;
 
 import com.github.rcubedev.example.event.api.Event;
+import com.github.rcubedev.example.event.api.EventBusRegistry;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
@@ -10,13 +11,13 @@ import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.api.spi.Linkable;
 import com.github.rcubedev.example.event.api.spi.Registrar;
+import com.github.rcubedev.example.event.test.TestableDispatchTable;
+import com.github.rcubedev.example.event.test.TestableEventBus;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -29,43 +30,103 @@ import java.util.function.BooleanSupplier;
  * {@code priority}, and {@code invoker} to produce an immutable flat {@link DispatchTable}.
  * Dispatch performs one {@code isInstance} check per processor in the flat array. When it
  * returns {@code false}, the rest of the family is skipped.
- * <p>
- * Extend to create a named singleton bus:
- * <pre>
- * {@code
- * public abstract class CustomEvent extends Event {}
- *
- * public final class CustomEventBus extends EventBus<CustomEvent> {
- *     public static final IEventBus<CustomEvent> INSTANCE = new CustomEventBus().register();
- *     private CustomEventBus() { super(CustomEvent.class); }
- * }
- * }
- * </pre>
  *
  * @param <B> The base event type this bus accepts
  */
 // todo optimize posting by merging all handlers for event type into one EventProcessor to remove inst checks
 // todo make type safe with GenericEvent<T> for example or document unsafety (likely latter).
-public final class EventBus<B extends Event> implements IEventBus<B> {
+// todo this violates single responsibility principle badly making it annoying to unit test etc.
+//  example cleanup:
+//class EventBus<B extends Event> {
+//    private final ListenerRegistry<B> registry = new ListenerRegistry<>();
+//    private final Dispatcher<B> dispatcher = new Dispatcher<>();
+//
+//    public <E extends B> void register(Class<E> type, Priority priority, EventProcessor<E> listener) {
+//        registry.add(type, priority, listener);
+//        dispatcher.rebuild(registry.snapshot());
+//    }
+//
+//    public void post(B event) {
+//        dispatcher.dispatch(event);
+//    }
+//}
+//class ListenerRegistry<B extends Event> {
+//    // Map: event type -> priority -> list of listeners
+//    private final Map<Class<? extends B>, ArrayBackedEventHandler<? extends B>[]> handlers = new HashMap<>();
+//
+//    public <E extends B> void add(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
+//        getOrCreateHandler(eventType, priority).addListener(listener);
+//    }
+//
+//    public <E extends B> boolean remove(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
+//        // similar to your removeListener()
+//    }
+//
+//    public RegistrySnapshot<B> snapshot() {
+//        // Returns immutable view of handlers
+//        return new RegistrySnapshot<>(handlers);
+//    }
+//
+//    private <E extends B> ArrayBackedEventHandler<E> getOrCreateHandler(Class<E> eventType, Priority priority) {
+//        // Same logic you have now
+//    }
+//}
+//class Dispatcher<B extends Event> {
+//    private EventBus.DispatchTable dispatchTable = EventBus.DispatchTable.EMPTY;
+//    private final ThreadLocal<Integer> depth = ThreadLocal.withInitial(() -> 0);
+//    private final int maxStackDepth;
+//
+//    public Dispatcher(int maxStackDepth) {
+//        this.maxStackDepth = maxStackDepth;
+//    }
+//
+//    public void rebuild(RegistrySnapshot<B> snapshot) {
+//        // Flatten handlers from snapshot into DispatchTable
+//        this.dispatchTable = DispatchTableBuilder.build(snapshot);
+//    }
+//
+//    public <E extends B> void dispatch(E event) {
+//        int currentDepth = depth.get();
+//        int newDepth = currentDepth + 1;
+//        if (newDepth > maxStackDepth) throw new EventStackOverflowException(...);
+//
+//        try {
+//            depth.set(newDepth);
+//            dispatchTable.dispatch(event); // same as your current DispatchTable.dispatch()
+//        } finally {
+//            depth.set(currentDepth);
+//        }
+//    }
+//}
+//class RegistrySnapshot<B extends Event> {
+//
+//    // Map: event type -> array of handlers by priority
+//    private final Map<Class<? extends B>, ArrayBackedEventHandler<? extends B>[]> handlers;
+//
+//    public RegistrySnapshot(Map<Class<? extends B>, ArrayBackedEventHandler<? extends B>[]> handlers) {
+//        // Copy to make immutable (shallow copy is fine if handlers themselves are immutable for rebuild)
+//        this.handlers = Map.copyOf(handlers);
+//    }
+//
+//    public Map<Class<? extends B>, ArrayBackedEventHandler<? extends B>[]> getHandlers() {
+//        return handlers;
+//    }
+//}
+public final class EventBus<B extends Event> implements IEventBus<B>, TestableEventBus<B> {
+
+    private static final ThreadLocal<int[]> depth = ThreadLocal.withInitial(() -> new int[]{0});
 
     private final Class<B> busType;
+    private final Object rebuildLock = new Object();
 
     // One ArrayBackedEventHandler[] per eventType, indexed by Priority.ordinal()
     // Only accessed inside rebuildLock. Generic types should match; safe to cast ArrayBackedEventHandler<T>
     // if getting from Class<T>
     private final Map<Class<? extends B>, ArrayBackedEventHandler<? extends B>[]> handlers = new HashMap<>();
-
-    // Children per parent. Array grown on each new child, only written/read inside rebuildLock
-    private final Map<Class<? extends B>, Class<? extends B>[]> childrenMap = new HashMap<>();
+    private final int maxStackDepth;
 
     // Flat dispatch array and family metadata. Rebuilt at registration, read-only at dispatch
     private volatile DispatchTable dispatchTable = DispatchTable.EMPTY;
-
-    private final ThreadLocal<Integer> depth = ThreadLocal.withInitial(() -> 0);
-    private final int maxStackDepth;
-
-    private final Object rebuildLock = new Object();
-    private volatile boolean registered = false;
 
     public EventBus(Class<B> busType, int maxStackDepth) {
         this.busType = busType;
@@ -78,32 +139,42 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     }
 
     public @NotNull IEventBus<B> register() {
-        EventBusRegistry.register(this);
+        EventBusRegistry.getInstance().register(this);
         return this;
     }
 
     @Override
     public <E extends B> void post(E event) {
-        int currentDepth = depth.get();
+        int[] depthArr = depth.get();
+        int currentDepth = depthArr[0];
+        int newDepth = currentDepth + 1;
 
-        if (currentDepth > maxStackDepth) throw new EventStackOverflowException(
-                "Event recursion too deep (currentDepth: " + currentDepth + ", maxStackDepth: " + maxStackDepth + ")." +
-                        "Check for circular posts (e.g. A posts B, B posts A).", currentDepth, maxStackDepth);
+        if (newDepth > maxStackDepth) {
+            throw new EventStackOverflowException(
+                    "Event recursion too deep (currentDepth: " + newDepth + ", maxStackDepth: " + maxStackDepth + "). " +
+                            "Check for circular posts (e.g. A posts B, B posts A).", newDepth, maxStackDepth);
+        }
         try {
-            depth.set(currentDepth + 1);
+            depthArr[0] = newDepth;
             dispatchTable.dispatch(event);
         } finally {
-            depth.set(currentDepth);
+            depthArr[0] = currentDepth;
+            if (currentDepth == 0) depth.remove();
         }
     }
 
     @Override
     public @NotNull RecursionBypass openBypassTo(int extraBudget) {
         if (extraBudget < 0) throw new IllegalArgumentException("extraBudget must be positive");
-        int previousDepth = depth.get();
-        depth.set(-extraBudget);
+        int[] depthArr = depth.get();
+        int previousDepth = depthArr[0];
+        int newDepth = previousDepth - extraBudget;
+        newDepth = newDepth > previousDepth ? Integer.MIN_VALUE : newDepth;
+        // depth.set(newDepth);
+        depthArr[0] = newDepth;
 
-        return () -> depth.set(previousDepth);
+        // return () -> depth.set(previousDepth);
+        return () -> depthArr[0] = previousDepth;
     }
 
     @Override
@@ -161,6 +232,7 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
         getOrCreateHandler(eventType, priority).addListener(listener);
     }
 
+    // todo if there are two of the same listeners it will remove both.
     private <E extends B> boolean removeListener(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
         @SuppressWarnings("unchecked")
         ArrayBackedEventHandler<E>[] priorityHandlers = (ArrayBackedEventHandler<E>[]) handlers.get(eventType);
@@ -203,7 +275,6 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
         if (priorityHandlers == null) {
             priorityHandlers = new ArrayBackedEventHandler[Priority.values().length];
             handlers.put(eventType, priorityHandlers);
-            trackType(eventType);
         }
         int ordinal = priority.ordinal();
         if (priorityHandlers[ordinal] == null) {
@@ -213,32 +284,11 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     }
 
     /**
-     * Record parent -> child relationship for family building.
-     * <p>
-     * Called the first time an event type is seen. Must be called inside {@code rebuildLock}.
-     */
-    @SuppressWarnings("unchecked")
-    private <E extends B> void trackType(Class<E> eventType) {
-        Class<? extends B> parent = (Class<? extends B>) getRegisteredParent(eventType);
-        if (parent != null) {
-            Class<? extends B>[] current = childrenMap.get(parent);
-            Class<? extends B>[] next;
-            if (current != null) {
-                next = (Class<? extends B>[]) new Class<?>[current.length + 1];
-                System.arraycopy(current, 0, next, 0, current.length);
-            }
-            else next = (Class<? extends B>[]) new Class<?>[1];
-            next[next.length - 1] = eventType;
-            childrenMap.put(parent, next);
-        }
-    }
-
-    /**
      * Find the nearest registered ancestor of {@code type} on this bus.
      * <p>
      * The return generic {@code <? super E>} is a subtype of {@link B}.
      */
-    private <E extends B> Class<? super E> getRegisteredParent(Class<E> type) {
+    private <E extends B> @Nullable Class<? super E> getRegisteredParent(Class<E> type) {
         Class<? super E>[] hierarchy = EventHandlerInheritanceRegistry.getEventHierarchy(type);
         for (int i = 1; i < hierarchy.length; i++) {
             Class<? super E> ancestor = hierarchy[i];
@@ -265,22 +315,33 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
 
         // Sort all registered event types shallowest first (superclass before subclass)
         List<Class<? extends B>> allTypes = new ArrayList<>(handlers.keySet());
+        // siblings will be in order of hashmap; JVM dependent.
         allTypes.sort(Comparator.comparingInt(this::hierarchyDepth));
+
+        // Map every unique type to a bit index
+        Map<Class<? extends B>, Integer> typeToBitIndex = new HashMap<>();
+        int allTypesLen = allTypes.size();
+        for (int i = 0; i < allTypesLen; i++) {
+            typeToBitIndex.put(allTypes.get(i), i);
+        }
+        // System.out.println("Type to bit index: " + typeToBitIndex);
 
         // Build families. Linear chains split at branch points
         List<List<Class<? extends B>>> families = buildFamilies(allTypes);
 
         // Flatten into 1D dispatch array. Priority-first, superclass -> subclass within family
-        // Parallel array of event types for per-element isInstance check at dispatch
         List<EventProcessor<?>> flatProcessors = new ArrayList<>();
-
-        record Pair<A, B>(A a, B b) {}
-        List<Pair<Class<?>, Priority>> flatChecking = new ArrayList<>();
-
         List<Class<?>> flatTypes = new ArrayList<>();
+        List<Integer> parentBitIndicesList = new ArrayList<>();
+        List<Integer> selfBitIndicesList = new ArrayList<>();
+
+        // record Pair<A, B>(A a, B b) {}
+        // List<Pair<Class<?>, Priority>> flatChecking = new ArrayList<>();
+
         Priority[] priorities = Priority.values();
         int numPriorities = priorities.length;
         int numFamilies = families.size();
+
         // Segment (p, f) stored at p*numFamilies+f. Keeps break valid per (priority, family) chunk
         int[] segmentOffsets = new int[numPriorities * numFamilies];
         int[] segmentLengths = new int[numPriorities * numFamilies];
@@ -290,15 +351,26 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
             for (int f = 0; f < numFamilies; f++) {
                 int idx = p * numFamilies + f;
                 segmentOffsets[idx] = flatProcessors.size();
+
                 for (Class<? extends B> type : families.get(f)) {
                     ArrayBackedEventHandler<?>[] priorityHandlers = handlers.get(type);
                     if (priorityHandlers == null) continue;
+
                     ArrayBackedEventHandler<?> handler = priorityHandlers[priority.ordinal()];
                     if (handler == null) continue;
+
+                    // Data for the dispatch table
                     flatProcessors.add(handler.invoker());
                     flatTypes.add(handler.eventType());
 
-                    flatChecking.add(new Pair<>(handler.eventType(), priority));
+                    // Map self and parent bits
+                    selfBitIndicesList.add(typeToBitIndex.get(type));
+
+                    @SuppressWarnings("unchecked") // safe as #getRegisteredParent ret is always a subtype of B
+                    Class<? extends B> parent = (Class<? extends B>) getRegisteredParent(type);
+                    parentBitIndicesList.add(parent == null ? -1 : typeToBitIndex.get(parent));
+
+                    // flatChecking.add(new Pair<>(handler.eventType(), priority));
                 }
                 segmentLengths[idx] = flatProcessors.size() - segmentOffsets[idx];
             }
@@ -309,7 +381,11 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
                 flatProcessors.toArray(EventProcessor[]::new),
                 flatTypes.toArray(Class[]::new),
                 segmentOffsets,
-                segmentLengths);
+                segmentLengths,
+                parentBitIndicesList.stream().mapToInt(i -> i).toArray(),
+                selfBitIndicesList.stream().mapToInt(i -> i).toArray(),
+                (allTypes.size() + 63) / 64
+        );
     }
 
     /**
@@ -317,43 +393,35 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
      * <p>
      * A family is a linear chain; a new family starts at a branch point.
      */
-    @SuppressWarnings("unchecked")
     private List<List<Class<? extends B>>> buildFamilies(List<Class<? extends B>> sortedTypes) {
+        // We go back to the SIMPLEST version.
+        // Families are just linear chains where each child's parent is the element before it.
         List<List<Class<? extends B>>> families = new ArrayList<>();
-        Map<Class<?>, Integer> typeToFamily = new HashMap<>();
+        Map<Class<? extends B>, Integer> typeToFamilyIdx = new HashMap<>();
 
         for (Class<? extends B> type : sortedTypes) {
+            @SuppressWarnings("unchecked") // safe because getRegisteredParent always returns a subtype of B.
             Class<? extends B> parent = (Class<? extends B>) getRegisteredParent(type);
 
-            if (parent == null) {
+            if (parent == null || !typeToFamilyIdx.containsKey(parent)) {
                 List<Class<? extends B>> family = new ArrayList<>();
                 family.add(type);
-                typeToFamily.put(type, families.size());
+                typeToFamilyIdx.put(type, families.size());
                 families.add(family);
             } else {
-                int parentFamilyIdx = typeToFamily.get(parent);
-                List<Class<? extends B>> parentFamily = families.get(parentFamilyIdx);
+                int familyIdx = typeToFamilyIdx.get(parent);
+                List<Class<? extends B>> family = families.get(familyIdx);
 
-                // Branch if parent already has another child in this family
-                Class<? extends B>[] siblings = childrenMap.getOrDefault(parent, (Class<? extends B>[]) new Class<?>[0]);
-                boolean branched = false;
-                for (Class<? extends B> sibling : siblings) {
-                    if (!sibling.equals(type)
-                            && typeToFamily.containsKey(sibling)
-                            && typeToFamily.get(sibling).equals(parentFamilyIdx)) {
-                        branched = true;
-                        break;
-                    }
-                }
-
-                if (!branched && parentFamily.getLast().equals(parent)) {
-                    parentFamily.add(type);
-                    typeToFamily.put(type, parentFamilyIdx);
+                if (family.getLast().equals(parent)) {
+                    family.add(type);
+                    typeToFamilyIdx.put(type, familyIdx);
                 } else {
-                    List<Class<? extends B>> newFamily = new ArrayList<>();
-                    newFamily.add(type);
-                    typeToFamily.put(type, families.size());
-                    families.add(newFamily);
+                    // Sibling branch: Starts a NEW family.
+                    // IMPORTANT: This family starts at the sibling, NOT the parent.
+                    List<Class<? extends B>> newBranch = new ArrayList<>();
+                    newBranch.add(type);
+                    typeToFamilyIdx.put(type, families.size());
+                    families.add(newBranch);
                 }
             }
         }
@@ -379,10 +447,10 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
      * <p>
      * Built at registration time, read locklessly at dispatch.
      */
-    private static final class DispatchTable {
+    public static final class DispatchTable implements TestableDispatchTable {
 
         static final DispatchTable EMPTY =
-                new DispatchTable(new EventProcessor[0], new Class[0], new int[0], new int[0]);
+                new DispatchTable(new EventProcessor[0], new Class[0], new int[0], new int[0], new int[0], new int[0], 0);
 
         /**
          * Flat array of merged invokers. One per (eventType, priority) handler.
@@ -395,38 +463,156 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
          * Parallel to {@link #flat}; the event type each processor belongs to.
          * <p>
          * Used for per-element {@code isInstance} check at dispatch.<br>
-         * When {@code isInstance} returns {@code false}, skip to the next family.
+         * When {@link Class#isInstance} returns {@code false}, skip to the next family.
          */
         private final Class<?>[] flatTypes;
 
         /**
-         * Start index for segment (p, f), stored at p*numFamilies+f.
+         * Start index for segment (priority, family), stored at priority * numFamilies + family.
          */
         private final int[] segmentOffsets;
 
         /**
-         * Entry count for segment (p, f), stored at p*numFamilies+f.
+         * Entry count for segment (priority, family), stored at priority * numFamilies + family.
          */
         private final int[] segmentLengths;
 
+        // BitSet metadata
+        /**
+         * Bit index of the registered parent for the type at this index.
+         * <p>
+         * Used to perform skips across different families.
+         */
+        private final int[] parentBitIndices;
+
+        /**
+         * Unique bit index for the type at this index.
+         * <p>
+         * Used to mark success in the {@code passBits} bitset.
+         */
+        private final int[] selfBitIndices;
+
+        /**
+         * Number of long slots required to represent all unique registered types.
+         */
+        private final int bitSetSize; // (numUniqueTypes + 63) / 64 <-- int ceil
+
+        /**
+         * Thread-local scratchpad to ensure thread-safe dispatch without per-post allocations.
+         */
+        private static final ThreadLocal<long[]> BIT_STRIP_CACHE = new ThreadLocal<>();
+
         DispatchTable(EventProcessor<?>[] flat, Class<?>[] flatTypes,
-                      int[] segmentOffsets, int[] segmentLengths) {
+                      int[] segmentOffsets, int[] segmentLengths,
+                      int[] parentBitIndices, int[] selfBitIndices, int bitSetSize) {
             this.flat = flat;
             this.flatTypes = flatTypes;
             this.segmentOffsets = segmentOffsets;
             this.segmentLengths = segmentLengths;
+            this.parentBitIndices = parentBitIndices;
+            this.selfBitIndices = selfBitIndices;
+            this.bitSetSize = bitSetSize;
         }
 
+        /**
+         * Dispatches the given event to all compatible processors in the table.
+         * <p>
+         * This method uses a dual-skip strategy to optimise event processing.
+         * <ul>
+         *   <li><b>Horizontal Skip:</b> Uses a bitset to skip entire branches when a common parent has failed elsewhere.</li>
+         *   <li><b>Vertical Skip:</b> Uses the linear family structure to skip children if a parent fails in-place.</li>
+         * </ul>
+         *
+         * @param event The event to post.
+         * @param <E>   The event type.
+         */
         @SuppressWarnings("unchecked")
         public <E extends Event> void dispatch(E event) {
+            if (flat.length == 0) return;
+
+            long[] passBits = BIT_STRIP_CACHE.get();
+            if (passBits == null || passBits.length < bitSetSize) {
+                passBits = new long[bitSetSize];
+                BIT_STRIP_CACHE.set(passBits);
+            }
+            Arrays.fill(passBits, 0L);
+
             for (int s = 0; s < segmentOffsets.length; s++) {
                 int start = segmentOffsets[s];
                 int end = start + segmentLengths[s];
+
                 for (int i = start; i < end; i++) {
+                    // if parent didn't pass isInstance check (in any family), skip this one.
+                    final int pIdx = parentBitIndices[i];
+                    if (pIdx != -1 && (passBits[pIdx >> 6] & (1L << (pIdx & 63))) == 0) break;
+
                     if (!flatTypes[i].isInstance(event)) break; // not an instance; skip rest of family
+
+                    // mark success
+                    final int selfIdx = selfBitIndices[i];
+                    passBits[selfIdx >> 6] |= (1L << (selfIdx & 63));
+
+                    // fire listeners
                     ((EventProcessor<E>) flat[i]).process(event);
                 }
             }
         }
+
+        @Override
+        public @NotNull EventProcessor<?>[] getFlatEventProcessors() {
+            return this.flat;
+        }
+
+        @Override
+        public @NotNull Class<?>[] getFlatTypes() {
+            return this.flatTypes;
+        }
+
+        @Override
+        public int @NotNull [] getSegmentOffsets() {
+            return this.segmentOffsets;
+        }
+
+        @Override
+        public int @NotNull [] getSegmentLengths() {
+            return this.segmentLengths;
+        }
+
+        @Override
+        public int @NotNull [] getParentBitIndices() {
+            return this.parentBitIndices;
+        }
+
+        @Override
+        public int @NotNull [] getSelfBitIndices() {
+            return this.selfBitIndices;
+        }
+
+        @Override
+        public int getBitSetSize() {
+            return this.bitSetSize;
+        }
+    }
+
+    @Override
+    public @NotNull DispatchTable getDispatchTable() {
+        return this.dispatchTable;
+    }
+
+    @Override
+    public void setDispatchTable(@NonNull DispatchTable table) {
+        synchronized (rebuildLock) {
+            this.dispatchTable = table;
+        }
+    }
+
+    @Override
+    public int getCurrentRecursionDepth() {
+        return depth.get()[0];
+    }
+
+    @Override
+    public void setRecursionDepth(int newDepth) {
+        depth.get()[0] = newDepth;
     }
 }

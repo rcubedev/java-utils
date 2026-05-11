@@ -1,33 +1,29 @@
 package com.github.rcubedev.example.event.api.spi;
 
 import com.github.rcubedev.example.event.api.Event;
-import com.github.rcubedev.example.event.impl.EventBus;
+import com.github.rcubedev.example.event.api.EventBusRegistry;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.SubscribeEvent;
+import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Interface for event buses typed to a specific {@link Event} subclass {@link B}.
- * <p>
- * Create a named bus by extending {@link EventBus}:
- * <pre>
- * {@code
- * // The bus marker. All events on this bus extend this
- * public abstract class MainBusEvent extends Event {}
  *
- * // The singleton bus
- * public final class MainEventBus extends EventBus<MainBusEvent> {
- *     public static final MainEventBus INSTANCE = new MainEventBus();
- *     private MainEventBus() { super(MainBusEvent.class); }
- * }
+ * @implSpec Implementations must be thread-safe for both registration and dispatch. This interface
+ *           mandates a recursion guard: implementations must track the depth of {@link #post(Event)}
+ *           calls on a per-thread basis and throw {@link EventStackOverflowException} if the safety
+ *           limit is exceeded.
+ *           <p>
+ *           Listeners must be invoked in a strictly defined order:
+ *           <ol>
+ *               <li>By {@link Priority} (from {@link Priority#LOWEST} to {@link Priority#MONITOR}).</li>
+ *               <li>Within the same priority, by hierarchy (superclasses before subclasses).</li>
+ *           </ol>
  *
- * // An event on this bus
- * public class PlayerLoginEvent extends MainBusEvent {}
- * }
- * </pre>
- *
+ * @see EventBusRegistry
  * @param <B> The base event type this bus accepts
  */
 public interface IEventBus<B extends Event> {
@@ -36,16 +32,12 @@ public interface IEventBus<B extends Event> {
      * Post an event to this bus.
      * <p>
      * Listeners are invoked synchronously in order of priority.
-     * <p>
-     * <b>Note on Exceptions:</b> If a listener throws an exception, it will propagate
-     * out of this method immediately. Any listeners that were scheduled to run after
-     * the failing listener will be skipped.
      *
      * @param event The event to dispatch
-     * @throws IllegalStateException if the recursion depth exceeds the safety limit of this bus.<br>
-     *                               Use {@link #openBypass()} to handle intentional deep recursion.
+     * @throws EventStackOverflowException if the stack depth exceeds the safety limit of this bus.<br>
+     *                                     Use {@link #openBypass()} to handle intentional deep recursion.
      */
-    <E extends B> void post(E event) throws IllegalStateException;
+    <E extends B> void post(E event) throws EventStackOverflowException;
 
     /**
      * Opens a scope where the recursion guard is disabled for the current thread.

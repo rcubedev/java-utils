@@ -1,26 +1,27 @@
 package com.github.rcubedev.example.event.impl;
 
 import com.github.rcubedev.example.event.api.Event;
+import com.github.rcubedev.example.event.api.EventBusRegistry;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
+import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Global registry of all {@link IEventBus} instances.
- * <p>
- * {@link #dispatch(Event)} fires all registered buses.
  */
-public final class EventBusRegistry {
+public final class EventBusRegistryImpl implements EventBusRegistry {
 
     // Volatile array as writes are rare (bus registration at startup only),
     // reads (dispatch) are frequent and need no locking beyond the volatile read
-    private static volatile IEventBus<?>[] buses = new IEventBus[0];
-    private static final Object writeLock = new Object();
+    private volatile IEventBus<?>[] buses = new IEventBus[0];
+    private final Object writeLock = new Object();
 
-    private EventBusRegistry() {}
+    private EventBusRegistryImpl() {}
 
     /**
      * Register a bus.
      */
-    public static void register(IEventBus<?> bus) {
+    public <E extends Event> void register(@NotNull IEventBus<E> bus) {
         synchronized (writeLock) {
             IEventBus<?>[] current = buses;
             IEventBus<?>[] next = new IEventBus<?>[current.length + 1];
@@ -39,7 +40,7 @@ public final class EventBusRegistry {
      *
      * @param event The event to dispatch
      */
-    public static <E extends Event> void dispatch(E event) {
+    public <E extends Event> void dispatch(@NonNull E event) {
         IEventBus<?>[] snapshot = buses; // single volatile read, no lock needed
         for (IEventBus<?> bus : snapshot) {
             if (bus.getBusType().isInstance(event)) {
@@ -48,5 +49,9 @@ public final class EventBusRegistry {
                 castedBus.post(event);
             }
         }
+    }
+
+    public static class Holder {
+        public static final EventBusRegistryImpl INSTANCE = new EventBusRegistryImpl();
     }
 }

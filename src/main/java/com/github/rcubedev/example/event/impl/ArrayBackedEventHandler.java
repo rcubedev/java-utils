@@ -60,6 +60,7 @@ public final class ArrayBackedEventHandler<E extends Event> {
             }
             if (index == -1) return false;
 
+            @SuppressWarnings("unchecked")
             EventProcessor<E>[] newArray = (EventProcessor<E>[]) new EventProcessor[listeners.length - 1];
             if (index > 0) {
                 System.arraycopy(listeners, 0, newArray, 0, index);
