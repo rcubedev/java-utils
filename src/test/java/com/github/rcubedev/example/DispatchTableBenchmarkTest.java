@@ -34,6 +34,8 @@ public class DispatchTableBenchmarkTest {
 
     @Test
     public void runJmhBenchmarks() throws Exception {
+        System.setProperty("jmh.separateClasspathJAR", "true");
+
         Options opt = new OptionsBuilder()
                 .include(this.getClass().getSimpleName())
                 .shouldDoGC(true)
