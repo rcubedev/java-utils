@@ -12,6 +12,7 @@ import com.github.rcubedev.example.event.impl.bus.registry.RegistrySnapshot;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
@@ -22,7 +23,6 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @State(Scope.Thread)
 @BenchmarkMode(Mode.Throughput)
@@ -53,6 +53,7 @@ public class DispatchTableBenchmarkTest {
     private FlatStampDispatchTable<Event>   flatStampTable;
     private LinearDispatchTable<Event>      linearTable;
     private NaiveDispatchTable<Event>       naiveTable;
+    private ClassValueDispatchTable<Event>  classValueTable;
 
     private Event matchingEvent;
     private Event nonMatchingEvent;
@@ -124,6 +125,30 @@ public class DispatchTableBenchmarkTest {
                 flatFields.flat, flatFields.flatTypes, flatFields.segmentOffsets, flatFields.segmentLengths);
 
         naiveTable = new NaiveDispatchTable<>(
+                flatFields.flat, flatFields.flatTypes);
+
+        Map<Class<? extends Event>, List<EventProcessor<? extends Event>>> lookupMap = new LinkedHashMap<>();
+
+        // Prime the map with keys for every single registered class type
+        for (Class<? extends Event> type : handlersMap.keySet()) {
+            lookupMap.put(type, new ArrayList<>());
+        }
+        // Also register an explicit slot for the unrelated event so the constructor primes it
+        lookupMap.put(unrelated, new ArrayList<>());
+
+        // Walk the flattened array structure to map processors down the type hierarchy inheritance chains
+        for (int i = 0; i < flatFields.flatTypes.length; i++) {
+            Class<? extends Event> handlerType = flatFields.flatTypes[i];
+            EventProcessor<Event> processor = flatFields.flat[i];
+
+            for (Class<? extends Event> eventType : lookupMap.keySet()) {
+                if (handlerType.isAssignableFrom(eventType)) {
+                    lookupMap.get(eventType).add(processor);
+                }
+            }
+        }
+
+        classValueTable = new ClassValueDispatchTable<>(
                 flatFields.flat, flatFields.flatTypes);
     }
 
@@ -337,6 +362,44 @@ public class DispatchTableBenchmarkTest {
                 stamps[selfBitIndices[i]] = 1;
                 @SuppressWarnings("unchecked")
                 EventProcessor<? super E> processor = (EventProcessor<? super E>) flat[i];
+                processor.process(event);
+            }
+        }
+    }
+
+    public static final class ClassValueDispatchTable<E extends Event> {
+        // Hidden internal cache mapping a Class type directly to its valid processors
+        private final ClassValue<EventProcessor<? super E>[]> cache;
+
+        @SuppressWarnings("unchecked")
+        public ClassValueDispatchTable(EventProcessor<? extends E>[] flat, Class<? extends E>[] flatTypes) {
+            this.cache = new ClassValue<>() {
+                @Override
+                protected EventProcessor<? super E>[] computeValue(@NonNull Class<?> type) {
+                    List<EventProcessor<? super E>> matched = new ArrayList<>();
+
+                    // Scan the flat types to resolve applicable handlers for this specific event type
+                    for (int i = 0; i < flatTypes.length; i++) {
+                        if (flatTypes[i].isAssignableFrom(type)) {
+                            matched.add((EventProcessor<? super E>) flat[i]);
+                        }
+                    }
+                    return matched.toArray(EventProcessor[]::new);
+                }
+            };
+
+            // Eagerly prime the cache for all known registered event types in the system
+            for (Class<? extends E> flatType : flatTypes) {
+                this.cache.get(flatType);
+            }
+        }
+
+        public void dispatch(@NotNull E event) {
+            // Instantaneous metadata retrieval without hash math or collisions
+            final EventProcessor<? super E>[] processors = cache.get(event.getClass());
+
+            // Pure unrolled sequential array loop execution
+            for (EventProcessor<? super E> processor : processors) {
                 processor.process(event);
             }
         }
