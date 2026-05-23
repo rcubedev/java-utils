@@ -1,11 +1,9 @@
-package com.github.rcubedev.example.event.impl;
+package com.github.rcubedev.example.event.impl.bus.node;
 
 import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
-
-import java.lang.reflect.Array;
-import java.util.Arrays;
+import com.github.rcubedev.example.event.api.spi.Subscription;
 
 /**
  * Holds all registered listeners for a single event type at a single priority,
@@ -19,18 +17,20 @@ import java.util.Arrays;
  */
 // fixme add pub api
 // todo maybe add the invokerFactory stuff again which gives a EventProcessor<E>[] and returns EventProcessor<E>; merges them
-public final class ArrayBackedEventHandler<E extends Event> {
+public final class ArrayBackedEventSink<E extends Event> {
 
     private final Class<E> eventType;
     private final Priority priority;
     private final Object lock = new Object();
 
+    private record RegisteredProcessor<E extends Event>(EventProcessor<E> processor, Subscription sub) {}
+
     @SuppressWarnings("unchecked")
-    private EventProcessor<E>[] listeners = (EventProcessor<E>[]) new EventProcessor[0];
+    private RegisteredProcessor<E>[] listeners = (RegisteredProcessor<E>[]) new RegisteredProcessor<?>[0];
 
     private volatile EventProcessor<E> invoker = event -> {};
 
-    public ArrayBackedEventHandler(Class<E> eventType, Priority priority) {
+    public ArrayBackedEventSink(Class<E> eventType, Priority priority) {
         this.eventType = eventType;
         this.priority = priority;
     }
@@ -38,22 +38,23 @@ public final class ArrayBackedEventHandler<E extends Event> {
     /**
      * Add a listener and rebuild the merged invoker.
      */
-    public void addListener(EventProcessor<E> listener) {
+    public void addListener(EventProcessor<E> listener, Subscription subscription) {
         synchronized (lock) {
             @SuppressWarnings("unchecked")
-            EventProcessor<E>[] newArray = (EventProcessor<E>[]) new EventProcessor[listeners.length + 1];
+            RegisteredProcessor<E>[] newArray = (RegisteredProcessor<E>[]) new RegisteredProcessor<?>[listeners.length + 1];
             System.arraycopy(listeners, 0, newArray, 0, listeners.length);
-            newArray[listeners.length] = listener;
+
+            newArray[listeners.length] = new RegisteredProcessor<>(listener, subscription);
             listeners = newArray;
             rebuildInvoker();
         }
     }
 
-    public boolean removeListener(EventProcessor<E> listener) {
+    public boolean removeListener(Subscription subscription) {
         synchronized (lock) {
             int index = -1;
             for (int i = 0; i < listeners.length; i++) {
-                if (listeners[i] == listener) {
+                if (listeners[i].sub() == subscription) {
                     index = i;
                     break;
                 }
@@ -61,10 +62,8 @@ public final class ArrayBackedEventHandler<E extends Event> {
             if (index == -1) return false;
 
             @SuppressWarnings("unchecked")
-            EventProcessor<E>[] newArray = (EventProcessor<E>[]) new EventProcessor[listeners.length - 1];
-            if (index > 0) {
-                System.arraycopy(listeners, 0, newArray, 0, index);
-            }
+            RegisteredProcessor<E>[] newArray = (RegisteredProcessor<E>[]) new RegisteredProcessor[listeners.length - 1];
+            System.arraycopy(listeners, 0, newArray, 0, index);
             if (index < listeners.length - 1) {
                 System.arraycopy(listeners, index + 1, newArray, index, listeners.length - index - 1);
             }
@@ -76,16 +75,25 @@ public final class ArrayBackedEventHandler<E extends Event> {
 
     /**
      * Rebuild the merged invoker from all registered listeners.
+     * <p>
      * Called after every {@link #addListener}.
      */
     private void rebuildInvoker() { // use invoker factory later
-        EventProcessor<E>[] snapshot = listeners;
-        invoker = switch (snapshot.length) {
+        RegisteredProcessor<E>[] builder = listeners;
+        invoker = switch (builder.length) {
             case 0 -> event -> {};
-            case 1 -> snapshot[0];
-            default -> event -> {
-                for (EventProcessor<E> l : snapshot) l.process(event);
-            };
+            case 1 -> builder[0].processor();
+            default -> {
+                @SuppressWarnings("unchecked")
+                EventProcessor<E>[] snapshot = new EventProcessor[builder.length];
+                for (int i = 0; i < builder.length; i++) {
+                    snapshot[i] = builder[i].processor();
+                }
+
+                yield event -> {
+                    for (EventProcessor<E> l : snapshot) l.process(event);
+                };
+            }
         };
     }
 
@@ -95,7 +103,7 @@ public final class ArrayBackedEventHandler<E extends Event> {
     @SuppressWarnings("unchecked")
     public void clear() {
         synchronized (lock) {
-            listeners = (EventProcessor<E>[]) new EventProcessor[0];
+            listeners = (RegisteredProcessor<E>[]) new RegisteredProcessor[0];
             rebuildInvoker();
         }
     }

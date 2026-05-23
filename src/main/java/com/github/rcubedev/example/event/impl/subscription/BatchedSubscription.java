@@ -1,16 +1,18 @@
 package com.github.rcubedev.example.event.impl;
 
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import com.github.rcubedev.example.event.api.spi.Subscription;
 
 public class BatchedSubscription implements Subscription {
-    private final BooleanSupplier unregisterAction;
-    private final Runnable unsubscribeAction;
+    private final Predicate<Subscription> unregisterAction;
+    private final Consumer<Subscription> unsubscribeAction;
     private volatile boolean unsubscribed = false;
     private final Object lock = new Object();
 
-    public BatchedSubscription(BooleanSupplier unregisterAction, Runnable unsubscribeAction) {
+    public BatchedSubscription(Predicate<Subscription> unregisterAction, Consumer<Subscription> unsubscribeAction) {
         this.unregisterAction = unregisterAction;
         this.unsubscribeAction = unsubscribeAction;
     }
@@ -22,7 +24,7 @@ public class BatchedSubscription implements Subscription {
             if (unsubscribed) return;
             unsubscribed = true;
         }
-        unsubscribeAction.run();
+        unsubscribeAction.accept(this);
     }
 
     /**
@@ -38,6 +40,6 @@ public class BatchedSubscription implements Subscription {
             if (unsubscribed) return false;
             unsubscribed = true;
         }
-        return unregisterAction.getAsBoolean();
+        return unregisterAction.test(this);
     }
 }

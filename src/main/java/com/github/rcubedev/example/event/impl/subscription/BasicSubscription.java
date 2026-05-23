@@ -2,12 +2,14 @@ package com.github.rcubedev.example.event.impl;
 
 import com.github.rcubedev.example.event.api.spi.Subscription;
 
+import java.util.function.Consumer;
+
 public class BasicSubscription implements Subscription {
-    private final Runnable unregisterAction;
+    private final Consumer<Subscription> unregisterAction;
     private volatile boolean unsubscribed = false;
     private final Object lock = new Object();
 
-    public BasicSubscription(Runnable unregisterAction) {
+    public BasicSubscription(Consumer<Subscription> unregisterAction) {
         this.unregisterAction = unregisterAction;
     }
 
@@ -18,6 +20,6 @@ public class BasicSubscription implements Subscription {
             if (unsubscribed) return;
             unsubscribed = true;
         }
-        unregisterAction.run();
+        unregisterAction.accept(this);
     }
 }

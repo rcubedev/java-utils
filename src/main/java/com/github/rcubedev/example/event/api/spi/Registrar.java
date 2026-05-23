@@ -7,14 +7,15 @@ import org.jetbrains.annotations.NotNull;
 
 @FunctionalInterface
 // todo
-public interface Registrar<E extends Event> {
+public interface Registrar<T extends Event> {
     /**
-     * Accepts a listener and returns a subscription.<br>
+     * Accepts a listener and returns a subscription.
+     * <p>
      * The bus implementation will handle the locking and linking.
      *
      * @param type The class of the event to listen for
      * @param priority The priority of this listener
      * @param processor The processor to invoke
      */
-    @NotNull Subscription register(Class<E> type, Priority priority, EventProcessor<E> processor);
+    <E extends T> @NotNull Subscription register(Class<E> type, Priority priority, EventProcessor<E> processor);
 }

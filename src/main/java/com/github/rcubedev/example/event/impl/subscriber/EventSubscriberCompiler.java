@@ -1,4 +1,4 @@
-package com.github.rcubedev.example.event.impl;
+package com.github.rcubedev.example.event.impl.subscriber;
 
 import java.lang.invoke.CallSite;
 import java.lang.invoke.LambdaMetafactory;
@@ -20,15 +20,17 @@ import com.github.rcubedev.example.event.api.SubscribeEvent;
 import com.github.rcubedev.example.event.api.Weak;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.api.spi.Registrar;
+import com.github.rcubedev.example.event.impl.processor.UnboundProcessor;
+import com.github.rcubedev.example.event.impl.processor.WeakEventProcessor;
 
 /**
  * Handles registration of {@link SubscribeEvent @SubscribeEvent} methods to a {@link IEventBus}.
  */
 // todo this violates SRP
-public final class EventSubscriberHandler {
+public final class EventSubscriberCompiler {
 
     private static final Map<MethodKey, HandlerFactory> CLASS_METAFACTORIES = new ConcurrentHashMap<>();
-    private EventSubscriberHandler() {}
+    private EventSubscriberCompiler() {}
 
     /**
      * Register all {@link SubscribeEvent @SubscribeEvent} methods from a target to the given bus.
@@ -40,8 +42,8 @@ public final class EventSubscriberHandler {
      * @param registrar The way to register to the bus todo
      * @throws IllegalArgumentException if invalid listener or no {@link SubscribeEvent @SubscribeEvent} methods found
      */
-    public static void register(
-            IEventBus<? extends Event> bus, Object target, Registrar<? extends Event> registrar) {
+    public static <B extends Event, E extends B> void register(
+            IEventBus<B> bus, Object target, Registrar<B> registrar) {
 
         if (target == null) throw new IllegalArgumentException("Cannot register null listener");
 
@@ -117,21 +119,22 @@ public final class EventSubscriberHandler {
     }
 
     @SuppressWarnings("unchecked")
-    private static <B extends Event, E extends Event> void registerListener(
-            IEventBus<B> bus, Object target, Method method, Registrar<E> registrar) {
+    private static <B extends Event, E extends B> void registerListener(
+            IEventBus<B> bus, Object target, Method method, Registrar<B> registrar) {
 
         Class<?> paramType = method.getParameterTypes()[0];
 
         // // Param type must be a subtype of the bus base type
         // // todo is this wanted? a listener may listen for Event and be ignored
         //     commented out for now, check swapped to ensure the param is supertype, subtype or exactly the event bus type
+        //     this is unsafe tho and prob should not be the behaviour.
         // if (!bus.getBusType().isAssignableFrom(paramType)) return;
         Class<B> busType = bus.getBusType();
         if (!busType.isAssignableFrom(paramType) && !paramType.isAssignableFrom(busType)) {
             validate(method); // still check if valid instead of just not throwing
             return;
         }
-        HandlerFactory handlerFactory = CLASS_METAFACTORIES.computeIfAbsent(new MethodKey(method), methodKey -> EventSubscriberHandler.createFactory(methodKey.clazz(), method));
+        HandlerFactory handlerFactory = CLASS_METAFACTORIES.computeIfAbsent(new MethodKey(method), methodKey -> EventSubscriberCompiler.createFactory(methodKey.clazz(), method));
 
         boolean isStatic = Modifier.isStatic(method.getModifiers());
 

@@ -3,9 +3,9 @@ package com.github.rcubedev.example.event;
 import com.github.rcubedev.example.event.api.*;
 import com.github.rcubedev.example.event.api.buses.MainBus;
 import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
-import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.api.spi.RecursionBypass;
 import com.github.rcubedev.example.event.api.spi.Subscription;
+import com.github.rcubedev.example.event.impl.EventBus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -26,7 +26,7 @@ public class EventBusTests {
     static abstract class TestEvent extends Event {}
 
     static final class TestBus {
-        static final IEventBus<TestEvent> INSTANCE = EventBusBuilder.create(TestEvent.class);
+        static final EventBus<TestEvent> INSTANCE = (EventBus<TestEvent>) EventBusBuilder.create(TestEvent.class);
     }
 
     // ── Linear hierarchy ──────────────────────────────────────────────────────
@@ -228,7 +228,6 @@ public class EventBusTests {
             TestBus.INSTANCE.register(ChildEvent.class, e -> log.add("child"));
             TestBus.INSTANCE.register(GrandchildEvent.class, e -> log.add("grandchild"));
             TestBus.INSTANCE.register(TestEvent.class, e -> {});
-            System.out.println("GrandchildEvent registered");
             TestBus.INSTANCE.post(new GrandchildEvent());
             assertEquals(List.of("parent", "child", "grandchild"), log);
         }
@@ -447,7 +446,7 @@ public class EventBusTests {
 
         @Test
         void nonVoidReturnThrows() {
-            assertThrows(IllegalStateException.class,
+            assertThrows(IllegalArgumentException.class,
                     () -> TestBus.INSTANCE.register(new NonVoidReturnListener()));
         }
 
@@ -563,7 +562,7 @@ public class EventBusTests {
             TestBus.INSTANCE.resetListeners();
             MainBus.BUS.post(new ParentEvent());
             assertEquals(List.of("mainbus"), log);
-            MainBus.BUS.resetListeners();
+            ((EventBus<Event>) MainBus.BUS).resetListeners();
         }
     }
 
@@ -579,7 +578,7 @@ public class EventBusTests {
             MainBus.BUS.register(ParentEvent.class, e -> log.add("mainbus"));
             new ParentEvent().dispatch();
             assertTrue(log.contains("mainbus"));
-            MainBus.BUS.resetListeners();
+            ((EventBus<Event>) MainBus.BUS).resetListeners();
         }
 
         @Test

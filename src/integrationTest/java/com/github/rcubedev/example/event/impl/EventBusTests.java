@@ -362,7 +362,7 @@ public class EventBusTests {
                     .subclass(TestEvent.class)
                     .name(this.getClass().getPackageName() + ".GeneratedEvent" + i) // Unique name
                     .make()
-                    .load(TestEvent.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
+                    .load(TestEvent.class.getClassLoader(), ClassLoadingStrategy.Default.WRAPPER)
                     .getLoaded();
 
             bus.register(uniqueSubclass, e -> {});
