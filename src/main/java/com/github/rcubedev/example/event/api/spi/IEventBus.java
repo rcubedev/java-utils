@@ -154,11 +154,4 @@ public interface IEventBus<B extends Event> {
      * @return The base event class
      */
     @NotNull Class<B> getBusType();
-
-    /**
-     * Internal. Used for testing.<br>
-     * Reset all listeners on this bus.
-     */
-    @ApiStatus.Internal
-    void resetListeners();
 }

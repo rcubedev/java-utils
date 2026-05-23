@@ -1,50 +1,40 @@
 package com.github.rcubedev.example.event.impl.subscriber;
 
-import java.lang.invoke.CallSite;
-import java.lang.invoke.LambdaMetafactory;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
-import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
 
-import com.github.rcubedev.example.event.api.Cancellable;
 import com.github.rcubedev.example.event.api.Event;
-import com.github.rcubedev.example.event.api.EventProcessor;
-import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.SubscribeEvent;
-import com.github.rcubedev.example.event.api.Weak;
-import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.api.spi.Registrar;
-import com.github.rcubedev.example.event.impl.processor.UnboundProcessor;
-import com.github.rcubedev.example.event.impl.processor.WeakEventProcessor;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * Handles registration of {@link SubscribeEvent @SubscribeEvent} methods to a {@link IEventBus}.
+ * Handles registration of {@link SubscribeEvent @SubscribeEvent} methods to a {@link Registrar}.
  */
-// todo this violates SRP
-public final class EventSubscriberCompiler {
+public final class EventSubscriberCompiler<B extends Event> {
 
-    private static final Map<MethodKey, HandlerFactory> CLASS_METAFACTORIES = new ConcurrentHashMap<>();
-    private EventSubscriberCompiler() {}
+    private final ListenerClassValidator classValidator;
+    private final EventHandlerCompiler<B> compiler;
+
+    public EventSubscriberCompiler(Class<B> busType) {
+        this(new ListenerClassValidator(), new EventHandlerCompiler<>(new EventMethodValidator<>(busType)));
+    }
+
+    EventSubscriberCompiler(ListenerClassValidator classValidator, EventHandlerCompiler<B> compiler) {
+        this.classValidator = classValidator;
+        this.compiler = compiler;
+    }
 
     /**
-     * Register all {@link SubscribeEvent @SubscribeEvent} methods from a target to the given bus.
+     * Register all {@link SubscribeEvent @SubscribeEvent} methods from a target to the given registrar.
      * <p>
-     * Must be called in {@code rebuildLock} if applicable.
+     * Must be called in {@code rebuildLock} (if applicable).
      *
-     * @param bus The bus to register to
      * @param target Instance, {@link Class} (for static methods), or {@link Method}
      * @param registrar The way to register to the bus todo
      * @throws IllegalArgumentException if invalid listener or no {@link SubscribeEvent @SubscribeEvent} methods found
      */
-    public static <B extends Event, E extends B> void register(
-            IEventBus<B> bus, Object target, Registrar<B> registrar) {
-
+    public void register(Object target, Registrar<B> registrar) {
         if (target == null) throw new IllegalArgumentException("Cannot register null listener");
 
         Class<?> type = target.getClass();
@@ -59,7 +49,7 @@ public final class EventSubscriberCompiler {
                 throw new IllegalArgumentException(
                         "register() was called with a Method not annotated with @SubscribeEvent: " + method);
             }
-            registerListener(bus, method.getDeclaringClass(), method, registrar); // fixme shouldnt this be called w/ the method's class? done
+            registerListener(null, method, registrar);
             return;
         }
 
@@ -67,14 +57,14 @@ public final class EventSubscriberCompiler {
         Class<?> clazz = isStatic ? (Class<?>) target : type;
 
         // todo speed this up by caching verified classes. can't just check the map as individual methods may be registered
-        checkSupertypes(clazz, clazz);
+        this.classValidator.validate(clazz);
 
         int foundMethods = 0;
         for (Method method : clazz.getDeclaredMethods()) {
             if (!method.isAnnotationPresent(SubscribeEvent.class)) continue;
 
             if (Modifier.isStatic(method.getModifiers()) == isStatic) {
-                registerListener(bus, target, method, registrar);
+                registerListener(isStatic ? null : target, method, registrar);
             } else {
                 if (isStatic) {
                     throw new IllegalArgumentException("""
@@ -101,42 +91,10 @@ public final class EventSubscriberCompiler {
         }
     }
 
-    private static void checkSupertypes(Class<?> registeredType, Class<?> type) {
-        if (type == null || type == Object.class) return;
-        if (type != registeredType) {
-            for (Method method : type.getDeclaredMethods()) {
-                if (method.isAnnotationPresent(SubscribeEvent.class)) {
-                    throw new IllegalArgumentException("""
-                            Attempting to register a listener object of type %s,
-                            however its supertype %s has a @SubscribeEvent method: %s.
-                            This is not allowed! Only the listener object itself can have @SubscribeEvent methods.
-                            """.formatted(registeredType, type, method));
-                }
-            }
-        }
-        checkSupertypes(registeredType, type.getSuperclass());
-        Stream.of(type.getInterfaces()).forEach(itf -> checkSupertypes(registeredType, itf));
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <B extends Event, E extends B> void registerListener(
-            IEventBus<B> bus, Object target, Method method, Registrar<B> registrar) {
-
-        Class<?> paramType = method.getParameterTypes()[0];
-
-        // // Param type must be a subtype of the bus base type
-        // // todo is this wanted? a listener may listen for Event and be ignored
-        //     commented out for now, check swapped to ensure the param is supertype, subtype or exactly the event bus type
-        //     this is unsafe tho and prob should not be the behaviour.
-        // if (!bus.getBusType().isAssignableFrom(paramType)) return;
-        Class<B> busType = bus.getBusType();
-        if (!busType.isAssignableFrom(paramType) && !paramType.isAssignableFrom(busType)) {
-            validate(method); // still check if valid instead of just not throwing
-            return;
-        }
-        HandlerFactory handlerFactory = CLASS_METAFACTORIES.computeIfAbsent(new MethodKey(method), methodKey -> EventSubscriberCompiler.createFactory(methodKey.clazz(), method));
-
-        boolean isStatic = Modifier.isStatic(method.getModifiers());
+    //@SuppressWarnings("unchecked")
+    private void registerListener(@Nullable Object instance, Method method, Registrar<B> registrar) {
+        this.compiler.registerListener(instance, method, registrar);
+        /*HandlerFactory handlerFactory = CLASS_METAFACTORIES.computeIfAbsent(new MethodKey(method), methodKey -> createFactory(methodKey.clazz(), method));
 
         Class<E> eventType = (Class<E>) paramType;
         EventProcessor<E> rawProcessor;
@@ -150,23 +108,11 @@ public final class EventSubscriberCompiler {
             rawProcessor.process(event);
         } : rawProcessor;
 
-        // EventProcessor<B> processor = event -> {
-        //     if (annotation.ignoreCancelled() && event instanceof Cancellable c && c.isCancelled()) return;
-        //     try {
-        //         // if (isStatic) handle.invoke(event);
-        //         // else handle.invoke(target, event);
-        //         // handle.invoke(event);
-        //         finalHandle.invokeExact(event);
-        //     } catch (Throwable e) {
-        //         throw new RuntimeException("Error invoking @SubscribeEvent method: " + method, e);
-        //     }
-        // };
-
-        registrar.register(eventType, handlerFactory.priority(), processor);
+        registrar.register(eventType, handlerFactory.priority(), processor);*/
     }
 
-    public static HandlerFactory createFactory(Class<?> targetClass, Method method) {
-        Class<?> paramType = validate(method);
+    /*public HandlerFactory createFactory(Class<?> targetClass, Method method) {
+        Class<?> paramType = this.methodValidator.validate(method);
 
         MethodHandles.Lookup lookup;
         try {
@@ -246,55 +192,18 @@ public final class EventSubscriberCompiler {
         } catch (Throwable e) {
             throw new RuntimeException("Failed to create lambda for " + method, e);
         }
-    }
+    }*/
 
-    private static Class<?> validate(Method method) {
-        if (!Modifier.isPublic(method.getModifiers())) {
-            throw new IllegalArgumentException("@SubscribeEvent method must be public: " + method);
-        }
-        if (method.getParameterCount() != 1) {
-            throw new IllegalArgumentException(
-                    "Method " + method + " has @SubscribeEvent annotation. " +
-                            "It has " + method.getParameterCount() + " arguments, " +
-                            "but event handler methods require a single argument only.");
-        }
-
-        Class<?> paramType = method.getParameterTypes()[0];
-
-        if (!Event.class.isAssignableFrom(paramType)) {
-            throw new IllegalArgumentException(
-                    "Method " + method + " has @SubscribeEvent but parameter is not an Event subtype: " + paramType);
-        }
-
-        if (method.getReturnType() != void.class) {
-            throw new IllegalStateException("@SubscribeEvent method must return void: " + method); // fixme what if i add something where event can decide w/o using event.setsomething & instead return type
-        }
-        return paramType;
-    }
-
-    /**
-     * Represents a unique identifier for a method.
-     *
-     * @param clazz The declaring class of the method
-     * @param methodName The method name
-     * @param type The {@link MethodType} of the method
-     */
-    public record MethodKey(Class<?> clazz, String methodName, MethodType type) {
-        public MethodKey(Method method) {
-            this(method.getDeclaringClass(), method.getName(), MethodType.methodType(method.getReturnType(), method.getParameterTypes()));
-        }
-    }
-
-    /**
+    /*
      * Represents a pre-compiled factory for a specific {@link SubscribeEvent @SubscribeEvent} method.
      *
      * @param priority The priority from the annotation
      * @param factory The factory that creates the lambda instance
      */
-    public record HandlerFactory(Priority priority, boolean ignoreCancelled, Factory factory) {}
+    /*public record HandlerFactory(Priority priority, boolean ignoreCancelled, Factory factory) {}
 
     @FunctionalInterface
     public interface Factory {
         EventProcessor<? extends Event> create(Object target) throws Throwable;
-    }
+    }*/
 }

@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class EventHandlerInheritanceRegistry {
 
+    // todo maybe swap to ClassValue
     private static final Map<Class<? extends Event>, Class<? extends Event>[]> cache = new ConcurrentHashMap<>();
 
     private EventHandlerInheritanceRegistry() {}

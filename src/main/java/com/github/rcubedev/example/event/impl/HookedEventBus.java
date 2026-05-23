@@ -10,6 +10,7 @@ import com.github.rcubedev.example.event.api.hooks.ErrorHandler;
 import com.github.rcubedev.example.event.api.spi.RecursionBypass;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
+import com.github.rcubedev.example.test.UnitTestIgnored;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -18,6 +19,8 @@ import org.jetbrains.annotations.NotNull;
  *
  * @param <B> The base event type
  */
+@Deprecated
+@UnitTestIgnored
 public final class HookedEventBus<B extends Event> implements IEventBus<B> {
 
     private final EventBus<B> delegate;
@@ -65,11 +68,6 @@ public final class HookedEventBus<B extends Event> implements IEventBus<B> {
     @Override
     public @NotNull Class<B> getBusType() {
         return delegate.getBusType();
-    }
-
-    @Override
-    public void resetListeners() {
-        delegate.resetListeners();
     }
 
     public @NotNull IEventBus<B> register() {

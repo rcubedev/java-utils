@@ -1,9 +1,9 @@
 package com.github.rcubedev.example.event.impl;
 
-import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventBusRegistry;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
+import com.github.rcubedev.example.event.api.TestEvent;
 import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
 import com.github.rcubedev.example.event.api.spi.Linkable;
 import com.github.rcubedev.example.event.api.spi.RecursionBypass;
@@ -22,8 +22,6 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class EventBusTests {
-
-    public static abstract class TestEvent extends Event {}
 
     static abstract class OtherEvent extends TestEvent {}
 

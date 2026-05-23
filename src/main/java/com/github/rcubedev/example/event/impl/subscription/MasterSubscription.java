@@ -1,4 +1,4 @@
-package com.github.rcubedev.example.event.impl;
+package com.github.rcubedev.example.event.impl.subscription;
 
 import com.github.rcubedev.example.event.api.spi.Subscription;
 

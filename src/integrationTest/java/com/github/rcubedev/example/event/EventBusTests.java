@@ -23,8 +23,6 @@ public class EventBusTests {
 
     // ── Test bus ──────────────────────────────────────────────────────────────
 
-    static abstract class TestEvent extends Event {}
-
     static final class TestBus {
         static final EventBus<TestEvent> INSTANCE = (EventBus<TestEvent>) EventBusBuilder.create(TestEvent.class);
     }
@@ -32,7 +30,11 @@ public class EventBusTests {
     // ── Linear hierarchy ──────────────────────────────────────────────────────
     //  TestEvent → ParentEvent → ChildEvent → GrandchildEvent
 
-    static class ParentEvent extends TestEvent {}
+    static class ParentEvent extends TestEvent {
+        public ParentEvent() {
+            super(EventBusRegistry.getInstance());
+        }
+    }
     static class ChildEvent extends ParentEvent {}
     static class GrandchildEvent extends ChildEvent {}
 

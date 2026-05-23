@@ -1,6 +1,8 @@
 package com.github.rcubedev.example.event.api;
 
 import com.github.rcubedev.example.event.api.spi.IEventBus;
+import com.github.rcubedev.example.test.UnitTestIgnored;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Base class for all events.
@@ -8,6 +10,17 @@ import com.github.rcubedev.example.event.api.spi.IEventBus;
  * @see IEventBus
  */
 public abstract class Event {
+
+    private final @NotNull EventBusRegistry registry;
+
+    Event(@NotNull EventBusRegistry registry) {
+        this.registry = registry;
+    }
+
+    @UnitTestIgnored
+    public Event() {
+        this(EventBusRegistry.getInstance());
+    }
 
     /**
      * Dispatch this event to all registered buses in the {@link EventBusRegistry}
@@ -18,6 +31,6 @@ public abstract class Event {
      * on a specific bus instance.
      */
     public final void dispatch() {
-        EventBusRegistry.getInstance().dispatch(this);
+        registry.dispatch(this);
     }
 }

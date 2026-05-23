@@ -1,4 +1,4 @@
-package com.github.rcubedev.example.event.impl;
+package com.github.rcubedev.example.event.impl.processor;
 
 import java.lang.ref.WeakReference;
 

@@ -1,6 +1,5 @@
-package com.github.rcubedev.example.event.impl;
+package com.github.rcubedev.example.event.impl.subscription;
 
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 

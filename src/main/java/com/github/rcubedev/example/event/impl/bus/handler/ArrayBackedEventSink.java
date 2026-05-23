@@ -1,4 +1,4 @@
-package com.github.rcubedev.example.event.impl.bus.node;
+package com.github.rcubedev.example.event.impl.bus.handler;
 
 import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventProcessor;
@@ -121,5 +121,13 @@ public final class ArrayBackedEventSink<E extends Event> {
 
     public Priority priority() {
         return priority;
+    }
+
+    public EventSinkSnapshot<E> snapshot() {
+        return new EventSinkSnapshot<>(
+                eventType,
+                priority,
+                invoker
+        );
     }
 }

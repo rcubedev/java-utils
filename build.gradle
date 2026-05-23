@@ -1,33 +1,55 @@
+import com.github.rcubedev.example.build.UnitTestIgnoredTransformer
+
 plugins {
-	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
-	id 'maven-publish'
+    id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+    id 'maven-publish'
+    id 'jacoco'
+    id 'idea'
 }
 
 version = project.mod_version
 group = project.maven_group
 
 base {
-	archivesName = project.archives_base_name
+    archivesName = project.archives_base_name
 }
 
 repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
+    // Add repositories to retrieve artifacts from in here.
+    // You should only use this when depending on other mods because
+    // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+    // See https://docs.gradle.org/current/userguide/declaring_repositories.html
+    // for more information about repositories.
     maven { url 'https://repo.sleeping.town/' }
 }
 
-loom {
-	splitEnvironmentSourceSets()
+sourceSets {
+    integrationTest {
+        compileClasspath += sourceSets.main.output + sourceSets.test.output
+        runtimeClasspath += sourceSets.main.output + sourceSets.test.output
+    }
+}
 
-	mods {
-		"modid" {
-			sourceSet sourceSets.main
-			sourceSet sourceSets.client
-		}
-	}
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+idea {
+    module {
+        testSources.from(sourceSets.integrationTest.java.srcDirs)
+    }
+}
+
+loom {
+    splitEnvironmentSourceSets()
+
+    mods {
+        "modid" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
     runs {
         "client" {
             client()
@@ -43,71 +65,131 @@ loom {
 
 }
 
-dependencies {
-	// To change the versions see the gradle.properties file
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings loom.officialMojangMappings()
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+configurations {
+    mockitoAgent
+}
 
-	// Fabric API. This is technically optional, but you probably want it anyway.
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+dependencies {
+    // To change the versions see the gradle.properties file
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    // Fabric API. This is technically optional, but you probably want it anyway.
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     implementation 'folk.sisby:kaleido-config:0.3.3+1.3.2'
     include 'folk.sisby:kaleido-config:0.3.3+1.3.2'
 
     testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
-	testImplementation 'org.mockito:mockito-core:5.+'
-	testImplementation 'org.mockito:mockito-junit-jupiter:5.+'
+    mockitoAgent('org.mockito:mockito-core:5.+') { transitive = false }
+    testImplementation 'org.mockito:mockito-core:5.+'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.+'
+
+    testImplementation 'org.openjdk.jmh:jmh-core:1.37'
+    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": inputs.properties.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+java {
+    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+    // if it is present.
+    // If you remove this line, sources will not be generated.
+    withSourcesJar()
+
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    inputs.property "archivesName", project.base.archivesName
+
+    from("LICENSE") {
+        rename { "${it}_${inputs.properties.archivesName}" }
+    }
 }
 
 test {
     useJUnitPlatform()
+    dependsOn 'transformUnitTestGenerated'
+    finalizedBy jacocoTestReport
+    jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
 }
 
-processResources {
-	inputs.property "version", project.version
-
-	filesMatching("fabric.mod.json") {
-		expand "version": inputs.properties.version
-	}
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
 }
 
-tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+tasks.register('integrationTest', Test) {
+    group = 'verification'
+
+    useJUnitPlatform()
+    jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}"
+
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath + sourceSets.test.runtimeClasspath
+    shouldRunAfter test
+    finalizedBy jacocoIntegrationTestReport
 }
 
-java {
-	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-	// if it is present.
-	// If you remove this line, sources will not be generated.
-	withSourcesJar()
-
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+tasks.register('jacocoIntegrationTestReport', JacocoReport) {
+    executionData integrationTest
+    sourceSets sourceSets.main
+    reports {
+        xml.required = true
+        html.required = true
+    }
 }
 
-jar {
-	inputs.property "archivesName", project.base.archivesName
-
-	from("LICENSE") {
-		rename { "${it}_${inputs.properties.archivesName}"}
-	}
-}
+check.dependsOn integrationTest
 
 // configure the maven publication
 publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			artifactId = project.archives_base_name
-			from components.java
-		}
-	}
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
 
-	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
-	repositories {
-		// Add repositories to publish to here.
-		// Notice: This block does NOT have the same function as the block in the top level.
-		// The repositories here will be used for publishing your artifact, not for
-		// retrieving dependencies.
-	}
+    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+    repositories {
+        // Add repositories to publish to here.
+        // Notice: This block does NOT have the same function as the block in the top level.
+        // The repositories here will be used for publishing your artifact, not for
+        // retrieving dependencies.
+    }
+}
+
+tasks.register('transformUnitTestGenerated') {
+    dependsOn compileTestJava
+    doLast {
+        sourceSets.main.output.classesDirs.each { dir ->
+            if (!dir.exists()) return
+
+            fileTree(dir).matching { include '**/*.class' }.each { classFile ->
+                byte[] original  = classFile.bytes
+                byte[] transformed = UnitTestIgnoredTransformer.transform(original)
+                if (transformed != original) {
+                    classFile.bytes = transformed
+                    logger.lifecycle("Annotated @Generated on: $classFile.name")
+                }
+            }
+        }
+    }
 }

@@ -11,19 +11,25 @@ import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.api.spi.Linkable;
 import com.github.rcubedev.example.event.api.spi.Registrar;
+import com.github.rcubedev.example.event.impl.bus.handler.ArrayBackedEventSink;
+import com.github.rcubedev.example.event.impl.subscriber.EventSubscriberCompiler;
+import com.github.rcubedev.example.event.impl.subscription.BasicSubscription;
+import com.github.rcubedev.example.event.impl.subscription.BatchedSubscription;
+import com.github.rcubedev.example.event.impl.subscription.MasterSubscription;
 import com.github.rcubedev.example.event.test.TestableDispatchTable;
 import com.github.rcubedev.example.event.test.TestableEventBus;
+import com.github.rcubedev.example.test.UnitTestIgnored;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jspecify.annotations.NonNull;
 
 import java.util.*;
-import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /**
  * Concrete implementation of {@link IEventBus}.
  * <p>
- * Stores one {@link ArrayBackedEventHandler} per {@code (eventType, priority)} pair.
+ * Stores one {@link ArrayBackedEventSink} per {@code (eventType, priority)} pair.
  * Each handler holds its own listeners merged into a single invoker.
  * <p>
  * At registration time, {@link #rebuild()} reads all handlers' {@code eventType},
@@ -112,6 +118,8 @@ import java.util.function.BooleanSupplier;
 //        return handlers;
 //    }
 //}
+@Deprecated
+@UnitTestIgnored
 public final class EventBus<B extends Event> implements IEventBus<B>, TestableEventBus<B> {
 
     private static final ThreadLocal<int[]> depth = ThreadLocal.withInitial(() -> new int[]{0});
@@ -122,7 +130,7 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     // One ArrayBackedEventHandler[] per eventType, indexed by Priority.ordinal()
     // Only accessed inside rebuildLock. Generic types should match; safe to cast ArrayBackedEventHandler<T>
     // if getting from Class<T>
-    private final Map<Class<? extends B>, ArrayBackedEventHandler<? extends B>[]> handlers = new HashMap<>();
+    private final Map<Class<? extends B>, ArrayBackedEventSink<? extends B>[]> handlers = new HashMap<>();
     private final int maxStackDepth;
 
     // Flat dispatch array and family metadata. Rebuilt at registration, read-only at dispatch
@@ -182,7 +190,7 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
         Subscription sub = createSubscription(eventType, priority, listener);
 
         synchronized (rebuildLock) {
-            getOrCreateHandler(eventType, priority).addListener(listener);
+            getOrCreateHandler(eventType, priority).addListener(listener, sub);
             rebuild();
         }
         return sub;
@@ -191,16 +199,20 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     @Override
     public @NotNull Subscription register(Object target) {
         List<BatchedSubscription> subscriptions = new ArrayList<>();
-        Registrar<B> register = (type, priority, processor) -> { // fixme not type safe as Registrar registers any Event type
-            BatchedSubscription sub = createBatchedSubscription(type, priority, processor);
-            // still use registerDirect because we are inside a batch
-            this.registerDirect(type, priority, processor);
-            subscriptions.add(sub);
-            return sub;
+        // use anon to make compiler happy
+        Registrar<B> register = new Registrar<>() {
+            @Override
+            public <E extends B> @NotNull Subscription register(Class<E> type, Priority priority, EventProcessor<E> processor) {
+                BatchedSubscription sub = createBatchedSubscription(type, priority, processor);
+                // still use registerDirect because we are inside a batch
+                EventBus.this.registerDirect(type, priority, processor, sub);
+                subscriptions.add(sub);
+                return sub;
+            }
         };
 
         synchronized (rebuildLock) {
-            EventSubscriberHandler.register(this, target, register);
+            new EventSubscriberCompiler<>(busType).register(target, register);
             rebuild();
         }
         return new MasterSubscription(subscriptions.toArray(BatchedSubscription[]::new), () -> {
@@ -208,11 +220,10 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
         });
     }
 
-    @Override
     public void resetListeners() {
         synchronized (rebuildLock) {
-            for (ArrayBackedEventHandler<?>[] priorityHandlers : handlers.values()) {
-                for (ArrayBackedEventHandler<?> handler : priorityHandlers) {
+            for (ArrayBackedEventSink<?>[] priorityHandlers : handlers.values()) {
+                for (ArrayBackedEventSink<?> handler : priorityHandlers) {
                     if (handler != null) handler.clear();
                 }
             }
@@ -223,31 +234,31 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     /**
      * Register a processor directly without triggering a rebuild.
      * <p>
-     * Used by {@link EventSubscriberHandler} to batch multiple
+     * Used by {@link EventSubscriberCompiler} to batch multiple
      * {@link SubscribeEvent @SubscribeEvent} registrations before a single rebuild.
      * <p>
      * Must be called inside {@code rebuildLock}.
      */
-    private <E extends B> void registerDirect(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
-        getOrCreateHandler(eventType, priority).addListener(listener);
+    private <E extends B> void registerDirect(Class<E> eventType, Priority priority, EventProcessor<E> listener, Subscription subscription) {
+        getOrCreateHandler(eventType, priority).addListener(listener, subscription);
     }
 
     // todo if there are two of the same listeners it will remove both.
-    private <E extends B> boolean removeListener(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
+    private <E extends B> boolean removeListener(Class<E> eventType, Priority priority, Subscription subscription) {
         @SuppressWarnings("unchecked")
-        ArrayBackedEventHandler<E>[] priorityHandlers = (ArrayBackedEventHandler<E>[]) handlers.get(eventType);
+        ArrayBackedEventSink<E>[] priorityHandlers = (ArrayBackedEventSink<E>[]) handlers.get(eventType);
         boolean removed = false;
         if (priorityHandlers != null) {
-            ArrayBackedEventHandler<E> handler = priorityHandlers[priority.ordinal()];
-            if (handler != null) removed = handler.removeListener(listener);
+            ArrayBackedEventSink<E> handler = priorityHandlers[priority.ordinal()];
+            if (handler != null) removed = handler.removeListener(subscription);
         }
         return removed;
     }
 
     private <E extends B> Subscription createSubscription(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
-        Runnable unregister = () -> {
+        Consumer<Subscription> unregister = sub -> {
             synchronized (rebuildLock) {
-                if (removeListener(eventType, priority, listener)) rebuild();
+                if (removeListener(eventType, priority, sub)) rebuild();
             }
         };
 
@@ -257,10 +268,10 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     }
 
     private <E extends B> BatchedSubscription createBatchedSubscription(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
-        BooleanSupplier unregister = () -> removeListener(eventType, priority, listener);
-        Runnable unsubscribe = () -> {
+        Predicate<Subscription> unregister = sub -> removeListener(eventType, priority, sub);
+        Consumer<Subscription> unsubscribe = sub -> {
             synchronized (rebuildLock) {
-                if (unregister.getAsBoolean()) rebuild();
+                if (unregister.test(sub)) rebuild();
             }
         };
 
@@ -270,15 +281,15 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     }
 
     @SuppressWarnings("unchecked")
-    private <E extends B> ArrayBackedEventHandler<E> getOrCreateHandler(Class<E> eventType, Priority priority) {
-        ArrayBackedEventHandler<E>[] priorityHandlers = (ArrayBackedEventHandler<E>[]) handlers.get(eventType);
+    private <E extends B> ArrayBackedEventSink<E> getOrCreateHandler(Class<E> eventType, Priority priority) {
+        ArrayBackedEventSink<E>[] priorityHandlers = (ArrayBackedEventSink<E>[]) handlers.get(eventType);
         if (priorityHandlers == null) {
-            priorityHandlers = new ArrayBackedEventHandler[Priority.values().length];
+            priorityHandlers = new ArrayBackedEventSink[Priority.values().length];
             handlers.put(eventType, priorityHandlers);
         }
         int ordinal = priority.ordinal();
         if (priorityHandlers[ordinal] == null) {
-            priorityHandlers[ordinal] = new ArrayBackedEventHandler<>(eventType, priority);
+            priorityHandlers[ordinal] = new ArrayBackedEventSink<>(eventType, priority);
         }
         return priorityHandlers[ordinal];
     }
@@ -300,10 +311,10 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     }
 
     /**
-     * Rebuild the flat dispatch array from all stored {@link ArrayBackedEventHandler}s.
+     * Rebuild the flat dispatch array from all stored {@link ArrayBackedEventSink}s.
      * <p>
-     * Re-adds each handler's {@link ArrayBackedEventHandler#eventType()},
-     * {@link ArrayBackedEventHandler#priority()}, and {@link ArrayBackedEventHandler#invoker()}.
+     * Re-adds each handler's {@link ArrayBackedEventSink#eventType()},
+     * {@link ArrayBackedEventSink#priority()}, and {@link ArrayBackedEventSink#invoker()}.
      * <p>
      * Called after every registration. Must be called inside {@code rebuildLock}.
      */
@@ -353,10 +364,10 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
                 segmentOffsets[idx] = flatProcessors.size();
 
                 for (Class<? extends B> type : families.get(f)) {
-                    ArrayBackedEventHandler<?>[] priorityHandlers = handlers.get(type);
+                    ArrayBackedEventSink<?>[] priorityHandlers = handlers.get(type);
                     if (priorityHandlers == null) continue;
 
-                    ArrayBackedEventHandler<?> handler = priorityHandlers[priority.ordinal()];
+                    ArrayBackedEventSink<?> handler = priorityHandlers[priority.ordinal()];
                     if (handler == null) continue;
 
                     // Data for the dispatch table
@@ -595,12 +606,12 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     }
 
     @Override
-    public @NotNull DispatchTable getDispatchTable() {
+    public @NotNull EventBus.DispatchTable getDispatchTable() {
         return this.dispatchTable;
     }
 
     @Override
-    public void setDispatchTable(@NonNull DispatchTable table) {
+    public void setDispatchTable(@NotNull EventBus.DispatchTable table) {
         synchronized (rebuildLock) {
             this.dispatchTable = table;
         }
