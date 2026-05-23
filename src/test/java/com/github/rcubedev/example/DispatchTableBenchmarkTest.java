@@ -129,29 +129,9 @@ public class DispatchTableBenchmarkTest {
         naiveTable = new NaiveDispatchTable<>(
                 flatFields.flat, flatFields.flatTypes);
 
-        Map<Class<? extends Event>, List<EventProcessor<? extends Event>>> lookupMap = new LinkedHashMap<>();
-
-        // Prime the map with keys for every single registered class type
-        for (Class<? extends Event> type : handlersMap.keySet()) {
-            lookupMap.put(type, new ArrayList<>());
-        }
-        // Also register an explicit slot for the unrelated event so the constructor primes it
-        lookupMap.put(unrelated, new ArrayList<>());
-
-        // Walk the flattened array structure to map processors down the type hierarchy inheritance chains
-        for (int i = 0; i < flatFields.flatTypes.length; i++) {
-            Class<? extends Event> handlerType = flatFields.flatTypes[i];
-            EventProcessor<Event> processor = flatFields.flat[i];
-
-            for (Class<? extends Event> eventType : lookupMap.keySet()) {
-                if (handlerType.isAssignableFrom(eventType)) {
-                    lookupMap.get(eventType).add(processor);
-                }
-            }
-        }
-
         classValueTable = new ClassValueDispatchTable<>(
                 flatFields.flat, flatFields.flatTypes);
+        classValueTable.cache.get(unrelated);
     }
 
     @SuppressWarnings("unchecked")
@@ -173,13 +153,19 @@ public class DispatchTableBenchmarkTest {
     // BENCHMARKS
     // ==========================================
 
-    @Benchmark
+    /*@Benchmark
     public void bitset_Matching(Blackhole bh) {
         prodBitSetTable.dispatch(matchingEvent);
         bh.consume(sideEffectCounter[0]);
     }
 
     @Benchmark
+    public void bitset_NonMatching(Blackhole bh) {
+        prodBitSetTable.dispatch(nonMatchingEvent);
+        bh.consume(sideEffectCounter[0]);
+    }*/
+
+    /*@Benchmark
     public void flatStamp_Matching(Blackhole bh) {
         flatStampTable.dispatch(matchingEvent);
         bh.consume(sideEffectCounter[0]);
@@ -188,12 +174,6 @@ public class DispatchTableBenchmarkTest {
     @Benchmark
     public void flatStamp_NonMatching(Blackhole bh) {
         flatStampTable.dispatch(nonMatchingEvent);
-        bh.consume(sideEffectCounter[0]);
-    }
-
-    @Benchmark
-    public void bitset_NonMatching(Blackhole bh) {
-        prodBitSetTable.dispatch(nonMatchingEvent);
         bh.consume(sideEffectCounter[0]);
     }
 
@@ -218,6 +198,18 @@ public class DispatchTableBenchmarkTest {
     @Benchmark
     public void naiveExhaustive_NonMatching(Blackhole bh) {
         naiveTable.dispatch(nonMatchingEvent);
+        bh.consume(sideEffectCounter[0]);
+    }*/
+
+    @Benchmark
+    public void classValue_Matching(Blackhole bh) {
+        classValueTable.dispatch(matchingEvent);
+        bh.consume(sideEffectCounter[0]);
+    }
+
+    @Benchmark
+    public void classValue_NonMatching(Blackhole bh) {
+        classValueTable.dispatch(nonMatchingEvent);
         bh.consume(sideEffectCounter[0]);
     }
 
