@@ -7,19 +7,25 @@ import com.github.rcubedev.example.event.api.spi.Subscription;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class ArrayBackedEventSinkTests {
 
     private ArrayBackedEventSink<TestEvent> handler;
+    @Mock private EventSinkSnapshot.Factory<TestEvent> mockSnapshotFactory;
+    @Mock private EventSinkSnapshot<TestEvent> mockSnapshot;
 
     @BeforeEach
     void setUp() {
-        handler = new ArrayBackedEventSink<>(TestEvent.class, Priority.NORMAL);
+        handler = new ArrayBackedEventSink<>(TestEvent.class, Priority.NORMAL, mockSnapshotFactory);
     }
 
     @Test
@@ -104,6 +110,22 @@ class ArrayBackedEventSinkTests {
         }
 
         @Test
+        void removeListener_ForcesArrayBoundsConditionalCopy() {
+            Subscription s1 = mock(Subscription.class);
+            Subscription s2 = mock(Subscription.class);
+            Subscription s3 = mock(Subscription.class);
+            EventProcessor<TestEvent> p = e -> {};
+
+            handler.addListener(p, s1);
+            handler.addListener(p, s2);
+            handler.addListener(p, s3);
+
+            // Explicitly tests 'index < listeners.length - 1' branch scenarios safely
+            assertTrue(handler.removeListener(s2));
+            assertTrue(handler.removeListener(s3));
+        }
+
+        @Test
         void clear_RemovesAllAndResetsInvoker() {
             AtomicInteger calls = new AtomicInteger(0);
             handler.addListener(e -> calls.incrementAndGet(), mock(Subscription.class));
@@ -117,6 +139,22 @@ class ArrayBackedEventSinkTests {
             handler.addListener(e -> calls.incrementAndGet(), mock(Subscription.class));
             handler.invoker().process(new TestEvent());
             assertEquals(1, calls.get());
+        }
+    }
+
+    @Nested
+    class SnapshotLogic {
+
+        @Test
+        void snapshot_ShouldInvokeFactoryAndReturnInstance() {
+            when(mockSnapshotFactory.snapshot(eq(TestEvent.class), eq(Priority.NORMAL), any()))
+                    .thenReturn(mockSnapshot);
+
+            EventSinkSnapshot<TestEvent> result = handler.snapshot();
+
+            assertNotNull(result);
+            assertEquals(mockSnapshot, result);
+            verify(mockSnapshotFactory, times(1)).snapshot(eq(TestEvent.class), eq(Priority.NORMAL), any());
         }
     }
 }

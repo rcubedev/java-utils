@@ -60,7 +60,7 @@ public class EventBusTests {
 
     // ── Listener helpers ──────────────────────────────────────────────────────
 
-    static class ParentListener {
+    public static class ParentListener {
         final List<String> log;
         ParentListener(List<String> log) { this.log = log; }
 
@@ -68,7 +68,7 @@ public class EventBusTests {
         public void onParent(ParentEvent e) { log.add("parent"); }
     }
 
-    static class ChildListener {
+    public static class ChildListener {
         final List<String> log;
         ChildListener(List<String> log) { this.log = log; }
 
@@ -76,7 +76,7 @@ public class EventBusTests {
         public void onChild(ChildEvent e) { log.add("child"); }
     }
 
-    static class MultiListener {
+    public static class MultiListener {
         final List<String> log;
         MultiListener(List<String> log) { this.log = log; }
 
@@ -87,7 +87,7 @@ public class EventBusTests {
         public void onChild(ChildEvent e) { log.add("child"); }
     }
 
-    static class PriorityListener {
+    public static class PriorityListener {
         final List<String> log;
         PriorityListener(List<String> log) { this.log = log; }
 
@@ -101,44 +101,81 @@ public class EventBusTests {
         public void onNormal(ParentEvent e) { log.add("normal"); }
     }
 
-    static class StaticListener {
+    public static class StaticListener {
         static List<String> log;
 
         @SubscribeEvent
         public static void onParent(ParentEvent e) { log.add("static"); }
     }
 
-    static class NoAnnotationListener {
+    public static class NoAnnotationListener {
         @SuppressWarnings("unused")
         public void onParent(ParentEvent e) {}
     }
 
-    static class InvalidParamCountListener {
+    public static class InvalidParamCountListener {
         @SubscribeEvent
         public void onParent(ParentEvent e, String extra) {}
     }
 
-    static class InvalidParamTypeListener {
+    public static class InvalidParamTypeListener {
         @SubscribeEvent
         public void onParent(String notAnEvent) {}
     }
 
-    static class NonVoidReturnListener {
+    public static class NonVoidReturnListener {
         @SubscribeEvent
         public int onParent(ParentEvent e) { return 0; }
     }
 
-    static class PrivateMethodListener {
+    public static class PrivateMethodListener {
         @SubscribeEvent
         private void onParent(ParentEvent e) {}
     }
 
-    static class SupertypeSubscribeListener {
+    public static class SupertypeSubscribeListener {
         @SubscribeEvent
         public void onParent(ParentEvent e) {}
     }
 
-    static class SubtypeOfSupertypeListener extends SupertypeSubscribeListener {}
+    public static class SubtypeOfSupertypeListener extends SupertypeSubscribeListener {}
+
+    public static class WeakListenerOnHandler {
+        final List<String> log;
+        WeakListenerOnHandler(List<String> log) { this.log = log; }
+
+        @Weak
+        @SubscribeEvent
+        public void on(ParentEvent e) {
+            log.add("weak");
+        }
+    }
+
+    @Weak
+    public static class WeakListenerOnClass {
+        final List<String> log;
+        WeakListenerOnClass(List<String> log) { this.log = log; }
+
+        @SubscribeEvent public void on(ParentEvent e) {
+            log.add("weak");
+        }
+    }
+
+    public static class IgnoreCancelledCancellableListener {
+        final List<String> log;
+        IgnoreCancelledCancellableListener(List<String> log) { this.log = log; }
+
+        @SubscribeEvent(ignoreCancelled = true)
+        public void on(CancellableTestEvent e) { log.add("called"); }
+    }
+
+    public static class CancellableListener {
+        final List<String> log;
+        CancellableListener(List<String> log) { this.log = log; }
+
+        @SubscribeEvent
+        public void on(CancellableTestEvent e) { log.add("called"); }
+    }
 
     private List<String> log;
 
@@ -486,11 +523,8 @@ public class EventBusTests {
 
         @Test
         void ignoreCancelledTrueSkipsWhenCancelled() {
-            class Listener {
-                @SubscribeEvent(ignoreCancelled = true)
-                public void on(CancellableTestEvent e) { log.add("called"); }
-            }
-            TestBus.INSTANCE.register(new Listener());
+            List<String> log = new ArrayList<>();
+            TestBus.INSTANCE.register(new IgnoreCancelledCancellableListener(log));
             CancellableTestEvent event = new CancellableTestEvent();
             event.cancel();
             TestBus.INSTANCE.post(event);
@@ -499,11 +533,8 @@ public class EventBusTests {
 
         @Test
         void ignoreCancelledFalseStillFiresWhenCancelled() {
-            class Listener {
-                @SubscribeEvent
-                public void on(CancellableTestEvent e) { log.add("called"); }
-            }
-            TestBus.INSTANCE.register(new Listener());
+            List<String> log = new ArrayList<>();
+            TestBus.INSTANCE.register(new CancellableListener(log));
             CancellableTestEvent event = new CancellableTestEvent();
             event.cancel();
             TestBus.INSTANCE.post(event);
@@ -512,22 +543,16 @@ public class EventBusTests {
 
         @Test
         void ignoreCancelledTrueFiresWhenNotCancelled() {
-            class Listener {
-                @SubscribeEvent(ignoreCancelled = true)
-                public void on(CancellableTestEvent e) { log.add("called"); }
-            }
-            TestBus.INSTANCE.register(new Listener());
+            List<String> log = new ArrayList<>();
+            TestBus.INSTANCE.register(new IgnoreCancelledCancellableListener(log));
             TestBus.INSTANCE.post(new CancellableTestEvent());
             assertEquals(List.of("called"), log);
         }
 
         @Test
         void ignoreCancelledRespectedOnChildOfCancellable() {
-            class Listener {
-                @SubscribeEvent(ignoreCancelled = true)
-                public void on(CancellableTestEvent e) { log.add("called"); }
-            }
-            TestBus.INSTANCE.register(new Listener());
+            List<String> log = new ArrayList<>();
+            TestBus.INSTANCE.register(new IgnoreCancelledCancellableListener(log));
             CancellableChildEvent event = new CancellableChildEvent();
             event.cancel();
             TestBus.INSTANCE.post(event);
@@ -600,8 +625,10 @@ public class EventBusTests {
 
         @Test
         void methodWeakListenerIsCollectedAndUnregistered() throws InterruptedException {
+            List<String> log = new ArrayList<>();
+
             // Use a helper to ensure 'listener' isn't trapped in this stack frame
-            WeakReference<Object> ref = registerWeakMethod();
+            WeakReference<Object> ref = registerWeakMethod(log);
 
             // should fire initially
             TestBus.INSTANCE.post(new ParentEvent());
@@ -624,8 +651,10 @@ public class EventBusTests {
 
         @Test
         void classWeakListenerIsCollectedAndUnregistered() throws InterruptedException {
+            List<String> log = new ArrayList<>();
+
             // Use a helper to ensure 'listener' isn't trapped in this stack frame
-            WeakReference<Object> ref = registerWeakClass();
+            WeakReference<Object> ref = registerWeakClass(log);
 
             // should fire initially
             TestBus.INSTANCE.post(new ParentEvent());
@@ -646,21 +675,14 @@ public class EventBusTests {
             assertTrue(log.isEmpty(), "Listener should not fire after GC");
         }
 
-        private WeakReference<Object> registerWeakMethod() {
-            class WeakListener {
-                @SubscribeEvent @Weak public void on(ParentEvent e) { log.add("weak"); }
-            }
-            WeakListener listener = new WeakListener();
+        private WeakReference<Object> registerWeakMethod(List<String> log) {
+            WeakListenerOnHandler listener = new WeakListenerOnHandler(log);
             TestBus.INSTANCE.register(listener);
             return new WeakReference<>(listener);
         }
 
-        private WeakReference<Object> registerWeakClass() {
-            @Weak
-            class WeakListener {
-                @SubscribeEvent public void on(ParentEvent e) { log.add("weak"); }
-            }
-            WeakListener listener = new WeakListener();
+        private WeakReference<Object> registerWeakClass(List<String> log) {
+            WeakListenerOnClass listener = new WeakListenerOnClass(log);
             TestBus.INSTANCE.register(listener);
             return new WeakReference<>(listener);
         }

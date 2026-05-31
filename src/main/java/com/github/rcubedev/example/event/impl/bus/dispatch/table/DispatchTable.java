@@ -4,119 +4,58 @@ import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
+import java.util.Map;
 
 /**
- * Immutable snapshot of the flat dispatch array and family metadata.
+ * A fast thread-safe table that routes events to their handlers.
  * <p>
- * Built at registration time, read locklessly at dispatch.
+ * Finding the handlers for an event takes {@code O(1)} constant time.<br>
+ * The time to execute dispatch scales linearly, {@code O(H)} based on the number of
+ * polymorphic handlers ({@code H}) matched to that specific event type.
  */
 public final class DispatchTable<E extends Event> {
 
-    /**
-     * Flat array of merged invokers. One per (eventType, priority) handler.
-     * <p>
-     * Sorted: priority-first, superclass -> subclass within each priority block per family.
-     */
-    private final EventProcessor<? extends E>[] flat;
+    private final ClassValue<EventProcessor<? super E>[]> cache;
 
     /**
-     * Parallel to {@link #flat}; the event type each processor belongs to.
-     * <p>
-     * Used for per-element {@code isInstance} check at dispatch.<br>
-     * When {@link Class#isInstance} returns {@code false}, skip to the next family.
+     * Creates a new dispatch table using a pre-sorted map of event handlers.
+     *
+     * @param preComputedPool a map of ready-to-run handler arrays keyed by event class
      */
-    private final Class<? extends E>[] flatTypes;
+    public DispatchTable(Map<Class<? extends E>, EventProcessor<? super E>[]> preComputedPool, FallbackResolver<E> fallback) {
+        this.cache = new ClassValue<>() {
+            @Override
+            protected EventProcessor<? super E>[] computeValue(@NotNull Class<?> type) {
+                EventProcessor<? super E>[] processors = preComputedPool.get(type);
+                if (processors != null) return processors;
+                return fallback.resolve(type);
+            }
+        };
 
-    /**
-     * Start index for segment (priority, family), stored at priority * numFamilies + family.
-     */
-    private final int[] segmentOffsets;
-
-    /**
-     * Entry count for segment (priority, family), stored at priority * numFamilies + family.
-     */
-    private final int[] segmentLengths;
-
-    // BitSet metadata
-    /**
-     * Bit index of the registered parent for the type at this index.
-     * <p>
-     * Used to perform skips across different families.
-     */
-    private final int[] parentBitIndices;
-
-    /**
-     * Unique bit index for the type at this index.
-     * <p>
-     * Used to mark success in the {@code passBits} bitset.
-     */
-    private final int[] selfBitIndices;
-
-    /**
-     * Number of long slots required to represent all unique registered types.
-     */
-    private final int bitSetSize; // (numUniqueTypes + 63) / 64 <-- int ceil
-
-    public DispatchTable(EventProcessor<? extends E>[] flat, Class<? extends E>[] flatTypes,
-                  int[] segmentOffsets, int[] segmentLengths,
-                  int[] parentBitIndices, int[] selfBitIndices, int bitSetSize) {
-        this.flat = flat;
-        this.flatTypes = flatTypes;
-        this.segmentOffsets = segmentOffsets;
-        this.segmentLengths = segmentLengths;
-        this.parentBitIndices = parentBitIndices;
-        this.selfBitIndices = selfBitIndices;
-        this.bitSetSize = bitSetSize;
+        // Eager init
+        for (Class<? extends E> registeredType : preComputedPool.keySet()) {
+            this.cache.get(registeredType);
+        }
     }
 
     @SuppressWarnings("unchecked")
     public static <T extends Event> @NotNull DispatchTable<T> empty() {
-        return (DispatchTable<T>) EmptyHolder.EMPTY;
+        return (DispatchTable<T>) Holder.EMPTY;
     }
 
     /**
-     * Dispatches the given event to all compatible processors in the table.
-     * <p>
-     * This method uses a dual-skip strategy to optimise event processing.
-     * <ul>
-     *   <li><b>Horizontal Skip:</b> Uses a bitset to skip entire branches when a common parent has failed elsewhere.</li>
-     *   <li><b>Vertical Skip:</b> Uses the linear family structure to skip children if a parent fails in-place.</li>
-     * </ul>
+     * Dispatches the given event to all compatible processors.
      *
      * @param event The event to post.
      */
     public void dispatch(@NotNull E event) {
-        if (flat.length == 0) return;
-        long[] passBits = new long[bitSetSize];
-
-        for (int s = 0; s < segmentOffsets.length; s++) {
-            int start = segmentOffsets[s];
-            int end = start + segmentLengths[s];
-
-            for (int i = start; i < end; i++) {
-                // if parent didn't pass isInstance check (in any family), skip this one.
-                final int pIdx = parentBitIndices[i];
-                if (pIdx != -1 && (passBits[pIdx >> 6] & (1L << (pIdx & 63))) == 0) break;
-
-                if (!flatTypes[i].isInstance(event)) break; // not an instance; skip rest of family
-
-                // mark success
-                final int selfIdx = selfBitIndices[i];
-                passBits[selfIdx >> 6] |= (1L << (selfIdx & 63));
-
-                // fire listeners
-                @SuppressWarnings("unchecked") // safe as type is known to be a supertype of E or match exactly.
-                EventProcessor<? super E> processor = ((EventProcessor<? super E>) flat[i]);
-                processor.process(event);
-            }
-        }
+        EventProcessor<? super E>[] processors = cache.get(event.getClass());
+        for (EventProcessor<? super E> processor : processors) processor.process(event);
     }
 
-    private static class EmptyHolder {
+    private static class Holder {
         @SuppressWarnings("unchecked")
-        private static final DispatchTable<?> EMPTY =
-                new DispatchTable<>(new EventProcessor<?>[0], (Class<? extends Event>[]) new Class<?>[0], new int[0], new int[0], new int[0], new int[0], 0);
+        private static final DispatchTable<?> EMPTY = new DispatchTable<>(Map.of(),
+                clazz -> (EventProcessor<? super Event>[]) new EventProcessor<?>[0]);
     }
 }
-

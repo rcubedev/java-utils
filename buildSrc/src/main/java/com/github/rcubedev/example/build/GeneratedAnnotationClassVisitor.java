@@ -8,7 +8,7 @@ import static com.github.rcubedev.example.build.UnitTestIgnoredTransformer.UNIT_
 public class GeneratedAnnotationClassVisitor extends ClassVisitor {
 
     private boolean classNeedsGenerated = false;
-    private boolean modified            = false;
+    private boolean modified = false;
 
     public GeneratedAnnotationClassVisitor(ClassVisitor cv) {
         super(Opcodes.ASM9, cv);

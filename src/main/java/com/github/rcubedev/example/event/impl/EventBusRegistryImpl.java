@@ -4,7 +4,6 @@ import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventBusRegistry;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
 import org.jetbrains.annotations.NotNull;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Global registry of all {@link IEventBus} instances.
@@ -16,7 +15,7 @@ public final class EventBusRegistryImpl implements EventBusRegistry {
     private volatile IEventBus<?>[] buses = new IEventBus[0];
     private final Object writeLock = new Object();
 
-    private EventBusRegistryImpl() {}
+    EventBusRegistryImpl() {}
 
     /**
      * Register a bus.
@@ -40,7 +39,7 @@ public final class EventBusRegistryImpl implements EventBusRegistry {
      *
      * @param event The event to dispatch
      */
-    public <E extends Event> void dispatch(@NonNull E event) {
+    public <E extends Event> void dispatch(@NotNull E event) {
         IEventBus<?>[] snapshot = buses; // single volatile read, no lock needed
         for (IEventBus<?> bus : snapshot) {
             if (bus.getBusType().isInstance(event)) {
@@ -53,5 +52,6 @@ public final class EventBusRegistryImpl implements EventBusRegistry {
 
     public static class Holder {
         public static final EventBusRegistryImpl INSTANCE = new EventBusRegistryImpl();
+        private Holder() {}
     }
 }

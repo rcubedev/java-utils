@@ -5,6 +5,7 @@ import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.impl.EventBus;
 import org.jetbrains.annotations.NotNull;
 
+@Deprecated
 public interface TestableEventBus<B extends Event> extends IEventBus<B> {
 
     @NotNull TestableDispatchTable getDispatchTable();

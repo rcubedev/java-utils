@@ -27,4 +27,9 @@ public class EventSinkSnapshot<E extends Event> {
     public Priority priority() {
         return priority;
     }
+
+    @FunctionalInterface
+    public interface Factory<E extends Event> {
+        EventSinkSnapshot<E> snapshot(Class<E> eventType, Priority priority, EventProcessor<E> invoker);
+    }
 }

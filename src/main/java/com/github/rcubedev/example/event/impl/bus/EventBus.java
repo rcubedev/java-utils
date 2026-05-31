@@ -4,8 +4,7 @@ import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.spi.*;
-import com.github.rcubedev.example.event.impl.bus.factory.RegistrationSessionFactory;
-import com.github.rcubedev.example.event.impl.bus.registry.RegistrationSession;
+import com.github.rcubedev.example.event.impl.bus.registry.RegistrationBuffer;
 import com.github.rcubedev.example.event.impl.subscription.factory.MasterSubscriptionFactory;
 import com.github.rcubedev.example.event.impl.subscription.SubscriptionFactory;
 import com.github.rcubedev.example.event.impl.subscription.BatchedSubscription;
@@ -26,7 +25,7 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     private final Dispatcher<B> dispatcher;
     private final SubscriptionFactory<B> factory;
     private final EventSubscriberCompiler<B> compiler;
-    private final RegistrationSessionFactory<B> sessionFactory;
+    private final RegistrationBuffer.Factory<B> sessionFactory;
     private final MasterSubscriptionFactory masterSubFactory;
 
     @UnitTestIgnored
@@ -37,11 +36,11 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     @UnitTestIgnored
     private EventBus(Class<B> busType, HandlerRegistry<B> registry, Dispatcher<B> dispatcher) {
         this(busType, registry, dispatcher, new SubscriptionFactory<>(registry, dispatcher),
-                new EventSubscriberCompiler<>(busType), RegistrationSession::new, MasterSubscription::new);
+                new EventSubscriberCompiler<>(busType), RegistrationBuffer::new, MasterSubscription::new);
     }
 
     EventBus(Class<B> busType, HandlerRegistry<B> registry, Dispatcher<B> dispatcher, SubscriptionFactory<B> factory,
-             EventSubscriberCompiler<B> compiler, RegistrationSessionFactory<B> sessionFactory,
+             EventSubscriberCompiler<B> compiler, RegistrationBuffer.Factory<B> sessionFactory,
              MasterSubscriptionFactory masterSubFactory) {
         this.busType = busType;
         this.registry = registry;
@@ -81,11 +80,11 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     @Override
     public @NotNull Subscription register(Object target) {
         List<BatchedSubscription> subscriptions = new ArrayList<>();
+        RegistrationBuffer<B> registrar = this.sessionFactory.create(this.factory, subscriptions);
+        this.compiler.build(target, registrar);
 
         this.dispatcher.update(() -> {
-            // todo i don't really want to lock the whole time while the methods are compiling.
-            RegistrationSession<B> registrar = this.sessionFactory.create(this.registry, this.factory, subscriptions);
-            this.compiler.register(target, registrar);
+            registrar.flush(this.registry);
             return this.registry.snapshot();
         });
 

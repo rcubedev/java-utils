@@ -22,7 +22,7 @@ import static org.mockito.Mockito.*;
 class DispatcherTests {
 
     @Mock private RecursionGuard guard;
-    @Mock private DispatchTable<TestEvent> initialTable; // This is the field name
+    @Mock private DispatchTable<TestEvent> initialTable;
     @Mock private RegistrySnapshot<TestEvent> snapshot;
 
     private Dispatcher<TestEvent> dispatcher;
@@ -42,7 +42,6 @@ class DispatcherTests {
 
             dispatcher.dispatch(event);
 
-            // Use the correct field name 'initialTable' here
             InOrder inOrder = inOrder(guard, initialTable);
             inOrder.verify(guard).increment();
             inOrder.verify(initialTable).dispatch(event);
@@ -52,7 +51,6 @@ class DispatcherTests {
         @Test
         void dispatch_ResetsGuardOnException() {
             when(guard.increment()).thenReturn(5);
-            // Use 'initialTable' here
             doThrow(new RuntimeException()).when(initialTable).dispatch(any());
 
             assertThrows(RuntimeException.class, () -> dispatcher.dispatch(new TestEvent()));
@@ -85,11 +83,11 @@ class DispatcherTests {
 
                 dispatcher.update(() -> snapshot);
 
-                dispatcher.dispatch(new TestEvent());
+                TestEvent testEvent = new TestEvent();
+                dispatcher.dispatch(testEvent);
 
-                // Verify newTable is used and initialTable is ignored
-                verify(newTable).dispatch(any());
-                verify(initialTable, never()).dispatch(any());
+                verify(newTable).dispatch(testEvent);
+                verify(initialTable, never()).dispatch(any(TestEvent.class));
             }
         }
     }

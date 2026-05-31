@@ -16,45 +16,29 @@ public class FamilyBuilder<B extends Event> {
         this.resolver = resolver;
     }
 
-    /**
-     * Build families from event types sorted by hierarchy depth.
-     * <p>
-     * A family is a linear chain; a new family starts at a branch point.
-     */
     public List<List<Class<? extends B>>> buildFamilies() {
         List<Class<? extends B>> sortedTypes = new ArrayList<>(snapshot.getHandlers().keySet());
         sortedTypes.sort(Comparator.comparingInt(resolver::hierarchyDepth));
 
         // Families are just linear chains where each child's parent is the element before it.
-        List<List<Class<? extends B>>> families = new ArrayList<>();
-        Map<Class<? extends B>, Integer> typeToFamilyIdx = new HashMap<>();
+        List<List<Class<? extends B>>> lineages = new ArrayList<>(sortedTypes.size());
+        Map<Class<? extends B>, List<Class<? extends B>>> lineageCache = HashMap.newHashMap(sortedTypes.size());
 
         for (Class<? extends B> type : sortedTypes) {
             Class<? extends B> parent = resolver.getRegisteredParentAsExtendsBus(type);
+            List<Class<? extends B>> lineage;
 
-            if (parent == null || !typeToFamilyIdx.containsKey(parent)) {
-                List<Class<? extends B>> family = new ArrayList<>();
-                family.add(type);
-                typeToFamilyIdx.put(type, families.size());
-                families.add(family);
-            } else {
-                int familyIdx = typeToFamilyIdx.get(parent);
-                List<Class<? extends B>> family = families.get(familyIdx);
+            if (parent != null) {
+                List<Class<? extends B>> parentLineage = lineageCache.get(parent);
+                lineage = new ArrayList<>(parentLineage.size() + 1);
+                lineage.addAll(parentLineage);
+            } else lineage = new ArrayList<>(4);
 
-                if (family.getLast().equals(parent)) {
-                    family.add(type);
-                    typeToFamilyIdx.put(type, familyIdx);
-                } else {
-                    // Sibling branch: Starts a NEW family.
-                    // IMPORTANT: This family starts at the sibling, NOT the parent.
-                    List<Class<? extends B>> newBranch = new ArrayList<>();
-                    newBranch.add(type);
-                    typeToFamilyIdx.put(type, families.size());
-                    families.add(newBranch);
-                }
-            }
+            lineage.add(type);
+            lineageCache.put(type, lineage);
+            lineages.add(lineage);
         }
 
-        return families;
+        return lineages;
     }
 }

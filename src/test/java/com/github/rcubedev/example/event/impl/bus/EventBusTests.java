@@ -4,8 +4,7 @@ import com.github.rcubedev.example.event.api.TestEvent;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.spi.Subscription;
-import com.github.rcubedev.example.event.impl.bus.factory.RegistrationSessionFactory;
-import com.github.rcubedev.example.event.impl.bus.registry.RegistrationSession;
+import com.github.rcubedev.example.event.impl.bus.registry.RegistrationBuffer;
 import com.github.rcubedev.example.event.impl.subscription.MasterSubscription;
 import com.github.rcubedev.example.event.impl.subscription.factory.MasterSubscriptionFactory;
 import com.github.rcubedev.example.event.impl.subscription.SubscriptionFactory;
@@ -33,7 +32,7 @@ class EventBusTests {
     @Mock Dispatcher<TestEvent> dispatcher;
     @Mock SubscriptionFactory<TestEvent> factory;
     @Mock EventSubscriberCompiler<TestEvent> compiler;
-    @Mock RegistrationSessionFactory<TestEvent> sessionFactory;
+    @Mock RegistrationBuffer.Factory<TestEvent> sessionFactory;
     @Mock MasterSubscriptionFactory masterSubFactory;
 
     private EventBus<TestEvent> bus;
@@ -113,10 +112,10 @@ class EventBusTests {
             RegistrySnapshot<TestEvent> mockSnapshot = mock(RegistrySnapshot.class);
             MasterSubscription mockMaster = mock(MasterSubscription.class);
             @SuppressWarnings("unchecked")
-            RegistrationSession<TestEvent> mockSession = mock(RegistrationSession.class);
+            RegistrationBuffer<TestEvent> mockBuffer = mock(RegistrationBuffer.class);
 
             when(handlerRegistry.snapshot()).thenReturn(mockSnapshot);
-            when(sessionFactory.create(any(), any(), any())).thenReturn(mockSession);
+            when(sessionFactory.create(any(), any())).thenReturn(mockBuffer);
             when(masterSubFactory.create(any(), any())).thenReturn(mockMaster);
 
             Subscription master = bus.register(target);
@@ -127,8 +126,9 @@ class EventBusTests {
 
             RegistrySnapshot<TestEvent> result = captor.getValue().get();
 
-            verify(sessionFactory).create(eq(handlerRegistry), eq(factory), any());
-            verify(compiler).register(eq(target), eq(mockSession));
+            verify(sessionFactory).create(eq(factory), any());
+            verify(mockBuffer).flush(handlerRegistry);
+            verify(compiler).build(eq(target), eq(mockBuffer));
             verify(handlerRegistry).snapshot();
             assertEquals(mockSnapshot, result);
             assertNotNull(master);
@@ -139,19 +139,21 @@ class EventBusTests {
             Object target = new Object();
 
             @SuppressWarnings("unchecked")
-            RegistrationSession<TestEvent> mockSession = mock(RegistrationSession.class);
-            when(sessionFactory.create(any(), any(), any())).thenReturn(mockSession);
+            RegistrationBuffer<TestEvent> mockBuffer = mock(RegistrationBuffer.class);
+            when(sessionFactory.create(any(), any())).thenReturn(mockBuffer);
             when(masterSubFactory.create(any(), any())).thenReturn(mock(MasterSubscription.class));
+
+            doAnswer(invocation -> {
+                Supplier<?> supplier = invocation.getArgument(0);
+                supplier.get();
+                return null;
+            }).when(dispatcher).update(any());
 
             bus.register(target);
 
-            @SuppressWarnings("unchecked")
-            ArgumentCaptor<Supplier<RegistrySnapshot<TestEvent>>> updateCaptor = ArgumentCaptor.forClass(Supplier.class);
-            verify(dispatcher).update(updateCaptor.capture());
-            updateCaptor.getValue().get();
-
-            verify(sessionFactory).create(eq(handlerRegistry), eq(factory), any());
-            verify(compiler).register(eq(target), eq(mockSession));
+            verify(sessionFactory).create(eq(factory), any());
+            verify(mockBuffer).flush(handlerRegistry);
+            verify(compiler).build(eq(target), eq(mockBuffer));
         }
 
         @Test
@@ -160,11 +162,11 @@ class EventBusTests {
 
             MasterSubscription mockMaster = mock(MasterSubscription.class);
             @SuppressWarnings("unchecked")
-            RegistrationSession<TestEvent> mockSession = mock(RegistrationSession.class);
+            RegistrationBuffer<TestEvent> mockBuffer = mock(RegistrationBuffer.class);
             @SuppressWarnings("unchecked")
             RegistrySnapshot<TestEvent> mockSnapshot = mock(RegistrySnapshot.class);
 
-            when(sessionFactory.create(any(), any(), any())).thenReturn(mockSession);
+            when(sessionFactory.create(any(), any())).thenReturn(mockBuffer);
             when(masterSubFactory.create(any(), any())).thenReturn(mockMaster);
             when(handlerRegistry.snapshot()).thenReturn(mockSnapshot);
 

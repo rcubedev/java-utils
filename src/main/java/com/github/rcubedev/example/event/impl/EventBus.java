@@ -118,8 +118,8 @@ import java.util.function.Predicate;
 //        return handlers;
 //    }
 //}
-@Deprecated
 @UnitTestIgnored
+@Deprecated
 public final class EventBus<B extends Event> implements IEventBus<B>, TestableEventBus<B> {
 
     private static final ThreadLocal<int[]> depth = ThreadLocal.withInitial(() -> new int[]{0});
@@ -199,8 +199,10 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     @Override
     public @NotNull Subscription register(Object target) {
         List<BatchedSubscription> subscriptions = new ArrayList<>();
-        // use anon to make compiler happy
-        Registrar<B> register = new Registrar<>() {
+        // use anon to make compiler happy. swapped to named to annt with UnitTestIgnored.
+        @UnitTestIgnored
+        @Deprecated
+        class RegistrarImpl implements Registrar<B> {
             @Override
             public <E extends B> @NotNull Subscription register(Class<E> type, Priority priority, EventProcessor<E> processor) {
                 BatchedSubscription sub = createBatchedSubscription(type, priority, processor);
@@ -209,10 +211,11 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
                 subscriptions.add(sub);
                 return sub;
             }
-        };
+        }
+        Registrar<B> register = new RegistrarImpl();
 
         synchronized (rebuildLock) {
-            new EventSubscriberCompiler<>(busType).register(target, register);
+            new EventSubscriberCompiler<>(busType).build(target, register);
             rebuild();
         }
         return new MasterSubscription(subscriptions.toArray(BatchedSubscription[]::new), () -> {
@@ -458,6 +461,8 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
      * <p>
      * Built at registration time, read locklessly at dispatch.
      */
+    @UnitTestIgnored
+    @Deprecated
     public static final class DispatchTable implements TestableDispatchTable {
 
         static final DispatchTable EMPTY =

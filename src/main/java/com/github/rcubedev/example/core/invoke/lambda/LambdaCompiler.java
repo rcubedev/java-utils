@@ -1,6 +1,7 @@
 package com.github.rcubedev.example.core.invoke.lambda;
 
 import com.github.rcubedev.example.event.impl.subscriber.MethodKey;
+import com.github.rcubedev.example.test.UnitTestIgnored;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Deprecated
+@UnitTestIgnored
 public class LambdaCompiler<T> {
 
     // LambdaKey.functionalInterface() -> Class<T> & LambdaKey.methodType().clazz() -> Class<U> == Factory<T, U> --> generic is the same.
@@ -129,9 +131,12 @@ public class LambdaCompiler<T> {
         T create(@Nullable U instance) throws Throwable;
     }
 
+    @UnitTestIgnored
     public record SamInfo(String name, MethodType type) {}
 
+    @UnitTestIgnored
     public record LambdaTarget<T>(MethodHandle invoke, Method method, Class<T> declaringClass) {}
 
+    @UnitTestIgnored
     public record LambdaKey(MethodKey methodKey, Class<?> functionalInterface) {}
 }

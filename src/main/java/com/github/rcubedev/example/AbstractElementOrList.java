@@ -20,7 +20,6 @@ import org.jetbrains.annotations.NotNull;
  */
 public abstract class AbstractElementOrList<T, S extends AbstractElementOrList<T, S>> extends AbstractDualElementValue<T, List<T>, S> implements ConfigSerializableObject<Object> {
 
-
     /**
      * Single-value constructor.
      * Initializes the element with a single value of type {@link T}.
@@ -110,6 +109,14 @@ public abstract class AbstractElementOrList<T, S extends AbstractElementOrList<T
     public String toString() {
         if (getRepresentation() instanceof Collection<?> collection) return this.getClass().getName() + "=" + collectionToString(collection);
         return super.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<T> toList() {
+        if (getRepresentation() instanceof List<?> list) {
+            return (List<T>) list;
+        }
+        return List.of((T) getRepresentation());
     }
 
     // TODO :: Make Collection util class

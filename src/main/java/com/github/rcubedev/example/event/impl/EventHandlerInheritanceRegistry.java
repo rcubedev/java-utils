@@ -5,8 +5,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Registry that tracks the event type hierarchy for polymorphic dispatching.
@@ -15,8 +13,20 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class EventHandlerInheritanceRegistry {
 
-    // todo maybe swap to ClassValue
-    private static final Map<Class<? extends Event>, Class<? extends Event>[]> cache = new ConcurrentHashMap<>();
+    private static final ClassValue<Class<? extends Event>[]> cache = new ClassValue<>() {
+        @Override
+        @SuppressWarnings("unchecked")
+        protected Class<? extends Event>[] computeValue(@NotNull Class<?> type) {
+            List<Class<? extends Event>> hierarchy = new ArrayList<>();
+            Class<?> current = type;
+            while (Event.class.isAssignableFrom(current)) {
+                Class<? extends Event> eventClass = (Class<? extends Event>) current;
+                hierarchy.add(eventClass);
+                current = current.getSuperclass();
+            }
+            return hierarchy.toArray(Class[]::new);
+        }
+    };
 
     private EventHandlerInheritanceRegistry() {}
 
@@ -28,15 +38,7 @@ public final class EventHandlerInheritanceRegistry {
      */
     @SuppressWarnings("unchecked")
     public static <T extends Event> Class<? super @NotNull T>[] getEventHierarchy(Class<T> eventType) {
-        return (Class<? super T>[]) cache.computeIfAbsent(eventType, type -> {
-            List<Class<? extends Event>> hierarchy = new ArrayList<>();
-            Class<?> current = type;
-            while (Event.class.isAssignableFrom(current)) {
-                Class<? extends Event> eventClass = (Class<? extends Event>) current;
-                hierarchy.add(eventClass);
-                current = current.getSuperclass();
-            }
-            return hierarchy.toArray(Class[]::new);
-        });
+        Class<? extends Event>[] hierarchy = cache.get(eventType);
+        return (Class<? super T>[]) hierarchy;
     }
 }

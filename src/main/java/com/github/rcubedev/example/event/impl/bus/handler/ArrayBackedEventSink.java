@@ -4,6 +4,7 @@ import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.spi.Subscription;
+import com.github.rcubedev.example.test.UnitTestIgnored;
 
 /**
  * Holds all registered listeners for a single event type at a single priority,
@@ -15,12 +16,12 @@ import com.github.rcubedev.example.event.api.spi.Subscription;
  *
  * @param <E> The event type
  */
-// fixme add pub api
 // todo maybe add the invokerFactory stuff again which gives a EventProcessor<E>[] and returns EventProcessor<E>; merges them
 public final class ArrayBackedEventSink<E extends Event> {
 
     private final Class<E> eventType;
     private final Priority priority;
+    private final EventSinkSnapshot.Factory<E> snapshotFactory;
     private final Object lock = new Object();
 
     private record RegisteredProcessor<E extends Event>(EventProcessor<E> processor, Subscription sub) {}
@@ -30,9 +31,15 @@ public final class ArrayBackedEventSink<E extends Event> {
 
     private volatile EventProcessor<E> invoker = event -> {};
 
+    @UnitTestIgnored
     public ArrayBackedEventSink(Class<E> eventType, Priority priority) {
+        this(eventType, priority, EventSinkSnapshot::new);
+    }
+
+    ArrayBackedEventSink(Class<E> eventType, Priority priority, EventSinkSnapshot.Factory<E> snapshotFactory) {
         this.eventType = eventType;
         this.priority = priority;
+        this.snapshotFactory = snapshotFactory;
     }
 
     /**
@@ -124,10 +131,6 @@ public final class ArrayBackedEventSink<E extends Event> {
     }
 
     public EventSinkSnapshot<E> snapshot() {
-        return new EventSinkSnapshot<>(
-                eventType,
-                priority,
-                invoker
-        );
+        return snapshotFactory.snapshot(eventType, priority, invoker);
     }
 }

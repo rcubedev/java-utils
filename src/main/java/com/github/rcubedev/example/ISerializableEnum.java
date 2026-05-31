@@ -16,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
  *
  * @implNote The {@link #getSelf} method provides a default implementation that simply casts the current instance
  *           to the required enum type {@link T}. This is safe as long as the implementing class correctly defines
+ *           the generic as itself.
  */
 // impls are preferred to be final to prevent potential issues for subclasses. enums are nonextendable, so this is a nonissue and therefore is not mentioned in javadoc
 public interface ISerializableEnum<T extends Enum<T> & ISerializableEnum<T>> extends ConfigSerializableObject<String> {
@@ -55,6 +56,10 @@ public interface ISerializableEnum<T extends Enum<T> & ISerializableEnum<T>> ext
             throw new ClassCastException();
         }
     }
+
+    // default T[] values() {
+    //     return getDeclaringClass().getEnumConstants();
+    // }
 
     /**
      * Converts the provided string representation of the enum constant to the enum value.

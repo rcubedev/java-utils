@@ -6,26 +6,33 @@ import com.github.rcubedev.example.event.impl.subscriber.HandlerFactory;
 import com.github.rcubedev.example.event.impl.subscriber.linker.exception.MemberAccessException;
 import com.github.rcubedev.example.event.impl.subscriber.linker.exception.ModuleAccessException;
 import com.github.rcubedev.example.event.impl.subscriber.linker.exception.StructuralLinkageException;
+import com.github.rcubedev.example.test.UnitTestIgnored;
 
 import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
+// todo leaks state: creates real HandlerFactory
 public class MethodLinker<T extends Event> {
     private final LinkageContext<T> context;
     private final Class<?> targetClass;
     private final boolean isStatic;
     private final LinkerEngine linker;
+    private final HandlerFactory.Provider<T> handlerFactoryProvider;
 
+    @UnitTestIgnored
     public MethodLinker(Method method, Class<T> paramType, LinkerEngine linker) {
-        this(MethodHandles.lookup(), method, paramType, linker);
+        this(method.getDeclaringClass(), Modifier.isStatic(method.getModifiers()), linker,
+                new LinkageContext<>(MethodHandles.lookup(), method, paramType), HandlerFactory::new);
     }
 
-    MethodLinker(MethodHandles.Lookup lookup, Method method, Class<T> paramType, LinkerEngine linker) {
+    MethodLinker(Class<?> targetClass, boolean isStatic, LinkerEngine linker, LinkageContext<T> context,
+                 HandlerFactory.Provider<T> handlerFactoryProvider) {
         this.linker = linker;
-        this.targetClass = method.getDeclaringClass();
-        this.isStatic = Modifier.isStatic(method.getModifiers());
-        this.context = new LinkageContext<>(lookup, method, paramType);
+        this.targetClass = targetClass;
+        this.isStatic = isStatic;
+        this.context = context;
+        this.handlerFactoryProvider = handlerFactoryProvider;
     }
 
     public HandlerFactory<T> compile() {
@@ -35,7 +42,7 @@ public class MethodLinker<T extends Event> {
 
         try {
             BindingFactory<T> factory = isWeak ? createWeak() : createStrong();
-            return new HandlerFactory<>(annotation.priority(), annotation.ignoreCancelled(), factory);
+            return handlerFactoryProvider.create(annotation.priority(), annotation.ignoreCancelled(), factory);
         } catch (ModuleAccessException e) {
             throw new IllegalArgumentException("Cannot access @SubscribeEvent method due to module restrictions: " + method, e);
         } catch (MemberAccessException e) {
@@ -63,57 +70,4 @@ public class MethodLinker<T extends Event> {
 
         return linker.linkWeak(context);
     }
-
-    /*private BindingFactory<E> createStrong() {
-        try {
-            CallSite site = LambdaMetafactory.metafactory(
-                    lookup, "process",
-                    isStatic ? MethodType.methodType(EventProcessor.class) : MethodType.methodType(EventProcessor.class, targetClass),
-                    MethodType.methodType(void.class, Event.class),
-                    handle, MethodType.methodType(void.class, paramType)
-            );
-            MethodHandle factoryHandle = site.getTarget();
-
-            if (isStatic) {
-                @SuppressWarnings("unchecked")
-                EventProcessor<E> processor = (EventProcessor<E>) factoryHandle.invokeExact();
-                return target -> processor;
-            }
-
-            MethodHandle bridged = factoryHandle.asType(factoryHandle.type().changeParameterType(0, Object.class));
-            return target -> {
-                @SuppressWarnings("unchecked")
-                EventProcessor<E> processor = (EventProcessor<E>) bridged.invokeExact(target);
-                return processor;
-            };
-        } catch (Throwable e) {
-            throw new RuntimeException("Failed to create lambda for " + method, e);
-        }
-    }
-
-    private BindingFactory<E> createWeak() {
-        if (isStatic) {
-            throw new IllegalArgumentException("""
-                            Expected @SubscribeEvent method %s to NOT be static
-                            because it was registered as a weak listener.
-                            Either make the method non-static, or remove the @Weak annotation.
-                            """.formatted(method));
-        }
-
-        try {
-            CallSite site = LambdaMetafactory.metafactory(
-                    lookup, "process",
-                    MethodType.methodType(UnboundProcessor.class),
-                    MethodType.methodType(void.class, Object.class, Event.class),
-                    handle, MethodType.methodType(void.class, targetClass, paramType)
-            );
-            MethodHandle factoryHandle = site.getTarget();
-
-            @SuppressWarnings("unchecked")
-            UnboundProcessor<Object, E> unbound = (UnboundProcessor<Object, E>) factoryHandle.invokeExact();
-            return instance -> new WeakEventProcessor<>(instance, unbound);
-        } catch (Throwable e) {
-            throw new RuntimeException("Failed to create lambda for " + method, e);
-        }
-    }*/
 }

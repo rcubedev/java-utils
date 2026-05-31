@@ -10,6 +10,8 @@ import com.github.rcubedev.example.reflect.TypedClass;
 import folk.sisby.kaleido.lib.quiltconfig.api.values.ComplexConfigValue;
 import folk.sisby.kaleido.lib.quiltconfig.api.values.ConfigSerializableObject;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for objects in the config system that can store either an element of type {@link A} or an element of type {@link B}.
@@ -20,6 +22,8 @@ import org.jetbrains.annotations.NotNull;
  * @param <S> the subclass type
  */
 public abstract class AbstractDualElementValue<A, B, S extends AbstractDualElementValue<A, B, S>> implements ConfigSerializableObject<Object> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("Kaleido Config"); // todo maybe change
 
     private final Object value; // Can hold either A or B
     private final TypedClass<A> typeA;
@@ -214,8 +218,8 @@ public abstract class AbstractDualElementValue<A, B, S extends AbstractDualEleme
 
         String argsStr = String.join(", ", ctorArgs);
 
-        ExampleMod.LOGGER.warn("(Config) Falling back to constructor '{}({})'. This is supported but not recommended; prefer defining an explicit constructor.",
+        // fixme use ILoggerRequired
+        LOGGER.warn("Falling back to constructor '{}({})'. This is supported but not recommended; prefer defining an explicit constructor.",
                 classCtor, argsStr);
     }
 }
-

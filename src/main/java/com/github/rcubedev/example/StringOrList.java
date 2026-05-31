@@ -16,22 +16,4 @@ public class StringOrList extends ElementOrList<String> implements ConfigSeriali
     public StringOrList(List<String> values) {
         super(values, typedClass, typedListClass);
     }
-
-    // public StringOrList(String value, TypedClass<String> clazz) {
-    //     super(value, clazz);
-    // }
-    //
-    // public StringOrList(List<String> values, TypedClass<String> clazz) {
-    //     super(values, clazz);
-    // }
-
-    // @Override
-    // protected @NotNull StringOrList newInstance(String value) {
-    //     return new StringOrList(value);
-    // }
-    //
-    // @Override
-    // protected @NotNull StringOrList newInstance(List<String> values) {
-    //     return new StringOrList(values);
-    // }
 }

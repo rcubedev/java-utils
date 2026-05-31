@@ -1,5 +1,6 @@
 package com.github.rcubedev.example.event.impl.subscription;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -8,8 +9,7 @@ import com.github.rcubedev.example.event.api.spi.Subscription;
 public class BatchedSubscription implements Subscription {
     private final Predicate<Subscription> unregisterAction;
     private final Consumer<Subscription> unsubscribeAction;
-    private volatile boolean unsubscribed = false;
-    private final Object lock = new Object();
+    private final AtomicBoolean unsubscribed = new AtomicBoolean(false);
 
     public BatchedSubscription(Predicate<Subscription> unregisterAction, Consumer<Subscription> unsubscribeAction) {
         this.unregisterAction = unregisterAction;
@@ -18,11 +18,8 @@ public class BatchedSubscription implements Subscription {
 
     @Override
     public void unsubscribe() {
-        if (unsubscribed) return;
-        synchronized (lock) {
-            if (unsubscribed) return;
-            unsubscribed = true;
-        }
+        // can't test CAS false branch easily: guards CAS race
+        if (unsubscribed.get() || !unsubscribed.compareAndSet(false, true)) return;
         unsubscribeAction.accept(this);
     }
 
@@ -34,11 +31,8 @@ public class BatchedSubscription implements Subscription {
      *         {@code false} if already unsubscribed
      */
     public boolean unregister() {
-        if (unsubscribed) return false;
-        synchronized (lock) {
-            if (unsubscribed) return false;
-            unsubscribed = true;
-        }
-        return unregisterAction.test(this);
+        if (unsubscribed.get()) return false;
+        // can't test CAS false branch easily: guards CAS race
+        return unsubscribed.compareAndSet(false, true) && unregisterAction.test(this);
     }
 }

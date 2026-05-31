@@ -1,4 +1,4 @@
-package com.github.rcubedev.example;
+/*package com.github.rcubedev.example;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -133,4 +133,4 @@ public class ExampleMod implements ModInitializer {
             if (source.getDirectEntity() != null) LOGGER.info("Hurt by direct entity type: {}", source.getDirectEntity().getType());
         }));
 	}
-}
+}*/

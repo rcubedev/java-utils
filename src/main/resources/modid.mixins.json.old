@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "com.github.rcubedev.example.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+      "WrappedConfigAccessor"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

@@ -10,4 +10,9 @@ import com.github.rcubedev.example.event.api.SubscribeEvent;
  * @param priority The priority from the annotation
  * @param factory The factory that creates the lambda instance
  */
-public record HandlerFactory<E extends Event>(Priority priority, boolean ignoreCancelled, BindingFactory<E> factory) {}
+public record HandlerFactory<E extends Event>(Priority priority, boolean ignoreCancelled, BindingFactory<E> factory) {
+
+    public interface Provider<E extends Event> {
+        HandlerFactory<E> create(Priority priority, boolean ignoreCancelled, BindingFactory<E> factory);
+    }
+}

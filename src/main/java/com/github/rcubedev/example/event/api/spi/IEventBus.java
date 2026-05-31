@@ -140,7 +140,7 @@ public interface IEventBus<B extends Event> {
      * Only methods whose parameter type is a subtype of {@link B} will be registered.
      * <p>
      * <b>Important:</b> Processors should ideally handle their own exceptions.
-     * An unhandled exception thrown by the processor will stop the dispatch of<br>
+     * An unhandled exception thrown by the processor will stop the dispatch of
      * the current event for all remaining listeners.
      *
      * @param target Listener instance or {@link Class} for static methods

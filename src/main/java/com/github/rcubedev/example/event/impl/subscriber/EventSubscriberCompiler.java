@@ -34,7 +34,7 @@ public final class EventSubscriberCompiler<B extends Event> {
      * @param registrar The way to register to the bus todo
      * @throws IllegalArgumentException if invalid listener or no {@link SubscribeEvent @SubscribeEvent} methods found
      */
-    public void register(Object target, Registrar<B> registrar) {
+    public void build(Object target, Registrar<B> registrar) {
         if (target == null) throw new IllegalArgumentException("Cannot register null listener");
 
         Class<?> type = target.getClass();

@@ -2,12 +2,12 @@ package com.github.rcubedev.example.event.impl.subscription;
 
 import com.github.rcubedev.example.event.api.spi.Subscription;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 public class BasicSubscription implements Subscription {
     private final Consumer<Subscription> unregisterAction;
-    private volatile boolean unsubscribed = false;
-    private final Object lock = new Object();
+    private final AtomicBoolean unsubscribed = new AtomicBoolean(false);
 
     public BasicSubscription(Consumer<Subscription> unregisterAction) {
         this.unregisterAction = unregisterAction;
@@ -15,11 +15,8 @@ public class BasicSubscription implements Subscription {
 
     @Override
     public void unsubscribe() {
-        if (unsubscribed) return;
-        synchronized (lock) {
-            if (unsubscribed) return;
-            unsubscribed = true;
-        }
+        // can't test the CAS false branch easily: unreachable in single-threaded context, guards CAS race
+        if (unsubscribed.get() || !unsubscribed.compareAndSet(false, true)) return;
         unregisterAction.accept(this);
     }
 }

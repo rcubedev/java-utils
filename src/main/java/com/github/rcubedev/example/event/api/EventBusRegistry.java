@@ -2,6 +2,7 @@ package com.github.rcubedev.example.event.api;
 
 import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.impl.EventBusRegistryImpl;
+import com.github.rcubedev.example.test.UnitTestIgnored;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
@@ -16,6 +17,7 @@ public interface EventBusRegistry {
      *
      * @return the singleton registry
      */
+    @UnitTestIgnored
     static @NotNull EventBusRegistry getInstance() {
         return EventBusRegistryImpl.Holder.INSTANCE;
     }

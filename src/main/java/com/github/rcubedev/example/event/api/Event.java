@@ -13,13 +13,13 @@ public abstract class Event {
 
     private final @NotNull EventBusRegistry registry;
 
-    Event(@NotNull EventBusRegistry registry) {
-        this.registry = registry;
-    }
-
     @UnitTestIgnored
     public Event() {
         this(EventBusRegistry.getInstance());
+    }
+
+    Event(@NotNull EventBusRegistry registry) {
+        this.registry = registry;
     }
 
     /**

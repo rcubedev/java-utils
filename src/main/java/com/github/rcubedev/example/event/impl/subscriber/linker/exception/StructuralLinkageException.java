@@ -5,6 +5,10 @@ package com.github.rcubedev.example.event.impl.subscriber.linker.exception;
  * the handler (e.g., LambdaMetafactory constraints or bad MethodType adaptations).
  */
 public final class StructuralLinkageException extends Exception {
+    public StructuralLinkageException(String message) {
+        super(message);
+    }
+
     public StructuralLinkageException(String message, Throwable cause) {
         super(message, cause);
     }

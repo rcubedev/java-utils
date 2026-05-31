@@ -1,14 +1,11 @@
 package com.github.rcubedev.example.mixin;
 
 import folk.sisby.kaleido.lib.quiltconfig.api.Config;
-import folk.sisby.kaleido.lib.quiltconfig.api.WrappedConfig;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.gen.Accessor;
 
-@SuppressWarnings("deprecation")
-@Mixin(WrappedConfig.class)
+// unused currently but will likely be used in future for config reloading.
+// users will be expected to implement this (e.g. with an accessor ext this ife)
+// as this is a java lib without mixin.
 public interface WrappedConfigAccessor {
 
-    @Accessor("wrapped")
     Config test$getWrapped();
 }

@@ -17,10 +17,10 @@ class RecursionGuardTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecursionGuardTests.class);
 
     private RecursionGuard guard;
-    private final int MAX_DEPTH = 3;
 
     @BeforeEach
     void setUp() {
+        int MAX_DEPTH = 3;
         guard = new RecursionGuard(MAX_DEPTH);
         // Ensure every test starts with a clean slate
         cleanupThreadLocal();
@@ -66,6 +66,7 @@ class RecursionGuardTests {
         // 2. Test branch: reset to zero (the remove() call)
         Field field = RecursionGuard.class.getDeclaredField("depth");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         ThreadLocal<int[]> tl = (ThreadLocal<int[]>) field.get(null);
 
         int[] originalArray = tl.get();

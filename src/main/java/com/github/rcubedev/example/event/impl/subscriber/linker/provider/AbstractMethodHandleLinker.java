@@ -10,7 +10,6 @@ import com.github.rcubedev.example.event.impl.subscriber.linker.exception.Struct
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
@@ -41,26 +40,28 @@ public abstract class AbstractMethodHandleLinker implements LinkerEngine {
             ModuleAccessException, MemberAccessException {
 
         MethodHandles.Lookup lookup = context.lookup();
+        Class<?> lookupClass = lookup.lookupClass();
         Method method = context.method();
         boolean isStatic = Modifier.isStatic(method.getModifiers());
+        Class<?> targetClass = context.targetClass();
 
-        try {
-            lookup = MethodHandles.privateLookupIn(context.targetClass(), lookup);
-        } catch (IllegalAccessException e) {
-            throw new ModuleAccessException(e);
-        }
+        lookup = lookup.in(targetClass);
 
         MethodHandle handle;
         try {
             handle = lookup.unreflect(method);
-        } catch (InaccessibleObjectException e) {
-            throw new ModuleAccessException(e);
         } catch (IllegalAccessException e) {
+            Module lookupModule = lookupClass.getModule();
+            Module targetModule = targetClass.getModule();
+
+            if (!lookupModule.canRead(targetModule) || !targetModule.isExported(targetClass.getPackageName(), lookupModule)) {
+                throw new ModuleAccessException(e);
+            }
             throw new MemberAccessException(e);
         }
 
         return new UnreflectedContext(lookup, handle, isStatic);
     }
 
-    protected record UnreflectedContext(MethodHandles.Lookup privateLookup, MethodHandle handle, boolean isStatic) {}
+    public record UnreflectedContext(MethodHandles.Lookup lookup, MethodHandle handle, boolean isStatic) {}
 }

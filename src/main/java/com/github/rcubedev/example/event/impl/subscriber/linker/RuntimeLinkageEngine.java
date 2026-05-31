@@ -7,12 +7,14 @@ import com.github.rcubedev.example.event.impl.subscriber.linker.exception.Module
 import com.github.rcubedev.example.event.impl.subscriber.linker.exception.StructuralLinkageException;
 import com.github.rcubedev.example.event.impl.subscriber.linker.provider.LmfHandlerLinker;
 import com.github.rcubedev.example.event.impl.subscriber.linker.provider.MethodHandlesHandlerLinker;
+import com.github.rcubedev.example.test.UnitTestIgnored;
 
 public final class RuntimeLinkageEngine implements LinkerEngine {
 
     private final LinkerEngine primary;
     private final LinkerEngine fallback;
 
+    @UnitTestIgnored
     public RuntimeLinkageEngine() {
         this(new LmfHandlerLinker(), new MethodHandlesHandlerLinker());
     }
