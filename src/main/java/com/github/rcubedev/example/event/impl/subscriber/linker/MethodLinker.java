@@ -21,9 +21,9 @@ public class MethodLinker<T extends Event> {
     private final HandlerFactory.Provider<T> handlerFactoryProvider;
 
     @UnitTestIgnored
-    public MethodLinker(Method method, Class<T> paramType, LinkerEngine linker) {
+    public MethodLinker(Method method, Class<T> paramType, Identity identity, LinkerEngine linker) {
         this(method.getDeclaringClass(), Modifier.isStatic(method.getModifiers()), linker,
-                new LinkageContext<>(MethodHandles.lookup(), method, paramType), HandlerFactory::new);
+                new LinkageContext<>(identity.lookup(), method, paramType), HandlerFactory::new);
     }
 
     MethodLinker(Class<?> targetClass, boolean isStatic, LinkerEngine linker, LinkageContext<T> context,

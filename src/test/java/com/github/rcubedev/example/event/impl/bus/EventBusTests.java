@@ -3,6 +3,7 @@ package com.github.rcubedev.example.event.impl.bus;
 import com.github.rcubedev.example.event.api.TestEvent;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
+import com.github.rcubedev.example.event.api.Identity;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.impl.bus.registry.RegistrationBuffer;
 import com.github.rcubedev.example.event.impl.subscription.MasterSubscription;
@@ -20,6 +21,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.invoke.MethodHandles;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,6 +36,7 @@ class EventBusTests {
     @Mock EventSubscriberCompiler<TestEvent> compiler;
     @Mock RegistrationBuffer.Factory<TestEvent> sessionFactory;
     @Mock MasterSubscriptionFactory masterSubFactory;
+    @Mock Identity identity;
 
     private EventBus<TestEvent> bus;
 
@@ -41,15 +44,6 @@ class EventBusTests {
     public void setup() {
         bus = new EventBus<>(TestEvent.class, handlerRegistry, dispatcher, factory, compiler, sessionFactory, masterSubFactory);
     }
-
-//    @Nested
-//    class Initialization {
-//        @Test
-//        void testPublicConstructorInitializesDefaults() {
-//            EventBus<TestEvent> prodBus = new EventBus<>(TestEvent.class, 3);
-//            assertEquals(TestEvent.class, prodBus.getBusType());
-//        }
-//    }
 
     @Nested
     class Metadata {
@@ -79,8 +73,7 @@ class EventBusTests {
     class BasicRegistration {
         @Test
         void testRegisterBasic_Flow() {
-            EventProcessor<TestEvent.SubEvent> processor = e -> {
-            };
+            EventProcessor<TestEvent.SubEvent> processor = e -> {};
             Subscription mockSub = mock(Subscription.class);
             @SuppressWarnings("unchecked")
             RegistrySnapshot<TestEvent> mockSnapshot = mock(RegistrySnapshot.class);
@@ -88,7 +81,7 @@ class EventBusTests {
             when(factory.createBasic(eq(TestEvent.SubEvent.class), any(), any())).thenReturn(mockSub);
             when(handlerRegistry.snapshot()).thenReturn(mockSnapshot);
 
-            Subscription result = bus.register(TestEvent.SubEvent.class, Priority.NORMAL, processor);
+            Subscription result = bus.register(TestEvent.SubEvent.class, Priority.NORMAL, processor, identity);
 
             assertEquals(mockSub, result);
 
@@ -118,7 +111,7 @@ class EventBusTests {
             when(sessionFactory.create(any(), any())).thenReturn(mockBuffer);
             when(masterSubFactory.create(any(), any())).thenReturn(mockMaster);
 
-            Subscription master = bus.register(target);
+            Subscription master = bus.register(target, identity);
 
             @SuppressWarnings("unchecked")
             ArgumentCaptor<Supplier<RegistrySnapshot<TestEvent>>> captor = ArgumentCaptor.forClass(Supplier.class);
@@ -128,7 +121,7 @@ class EventBusTests {
 
             verify(sessionFactory).create(eq(factory), any());
             verify(mockBuffer).flush(handlerRegistry);
-            verify(compiler).build(eq(target), eq(mockBuffer));
+            verify(compiler).build(target, identity, mockBuffer);
             verify(handlerRegistry).snapshot();
             assertEquals(mockSnapshot, result);
             assertNotNull(master);
@@ -149,11 +142,11 @@ class EventBusTests {
                 return null;
             }).when(dispatcher).update(any());
 
-            bus.register(target);
+            bus.register(target, identity);
 
             verify(sessionFactory).create(eq(factory), any());
             verify(mockBuffer).flush(handlerRegistry);
-            verify(compiler).build(eq(target), eq(mockBuffer));
+            verify(compiler).build(target, identity, mockBuffer);
         }
 
         @Test
@@ -176,9 +169,8 @@ class EventBusTests {
                 return null;
             }).when(dispatcher).update(any());
 
-            bus.register(target);
+            bus.register(target, identity);
 
-            // Capture the rebuild runnable passed to masterSubFactory and invoke it directly
             ArgumentCaptor<Runnable> rebuildCaptor = ArgumentCaptor.forClass(Runnable.class);
             verify(masterSubFactory).create(any(), rebuildCaptor.capture());
             rebuildCaptor.getValue().run();

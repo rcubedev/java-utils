@@ -30,7 +30,12 @@ public class EventHandlerCompiler<B extends Event> {
         this.validationHook = validationHook;
     }
 
-    public <E extends B> void registerListener(@Nullable Object instance, Method method, Registrar<B> registrar) {
+    //fixme should validate if Identity can register for method if in cache
+    public void registerListener(@Nullable Object instance, Method method, Identity identity, Registrar<B> registrar) {
+        registerListener0(instance, method, identity, registrar);
+    }
+
+    private <E extends B> void registerListener0(@Nullable Object instance, Method method, Identity identity, Registrar<B> registrar) {
 
         if (!validationHook.isCompatible(method)) {
             validationHook.validate(method); // blow up
@@ -40,7 +45,7 @@ public class EventHandlerCompiler<B extends Event> {
 
         @SuppressWarnings("unchecked")
         HandlerFactory<E> handlerFactory = (HandlerFactory<E>) CLASS_METAFACTORIES.computeIfAbsent(
-                new MethodKey(method), k -> compile(method));
+                new MethodKey(method), k -> compile(method, identity));
 
         @SuppressWarnings("unchecked") // safe as passed validation earlier or now (would have thrown if failed)
         Class<E> eventType = (Class<E>) method.getParameterTypes()[0];
@@ -60,9 +65,9 @@ public class EventHandlerCompiler<B extends Event> {
         registrar.register(eventType, handlerFactory.priority(), processor);
     }
 
-    private <E extends B> HandlerFactory<E> compile(Method method) {
-        Class<E> paramType = validationHook.validate(method);
-        MethodLinker<E> linker = new MethodLinker<>(method, paramType, linkageEngine);
+    private HandlerFactory<? extends B> compile(Method method, Identity identity) {
+        Class<? extends B> paramType = validationHook.validate(method);
+        MethodLinker<? extends B> linker = new MethodLinker<>(method, paramType, identity, linkageEngine);
         return linker.compile();
     }
 

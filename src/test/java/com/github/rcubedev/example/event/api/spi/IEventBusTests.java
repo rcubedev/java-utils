@@ -3,6 +3,8 @@ package com.github.rcubedev.example.event.api.spi;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.TestEvent;
+import com.github.rcubedev.example.event.api.Identity;
+import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,17 +25,22 @@ class IEventBusTests {
     private Class<?> capturedClass;
     private Priority capturedPriority;
     private EventProcessor<?> capturedProcessor;
+    private Identity capturedIdentity;
+    private Object capturedTarget;
     private int capturedExtraBudget;
 
     @Mock private EventProcessor<TestEvent> mockProcessor;
     @Mock private Subscription mockSubscription;
     @Mock private RecursionBypass mockBypass;
+    @Mock private Identity mockIdentity;
 
     @BeforeEach
     void setUp() {
         capturedClass = null;
         capturedPriority = null;
         capturedProcessor = null;
+        capturedIdentity = null;
+        capturedTarget = null;
         capturedExtraBudget = -1;
 
         bus = new IEventBus<>() {
@@ -41,15 +48,19 @@ class IEventBusTests {
             public <E extends TestEvent> void post(E event) throws EventStackOverflowException {}
 
             @Override
-            public <E extends TestEvent> @NotNull Subscription register(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
+            public <E extends TestEvent> @NotNull Subscription register(Class<E> eventType, Priority priority,
+                                                                        EventProcessor<E> listener, Identity identity) {
                 capturedClass = eventType;
                 capturedPriority = priority;
                 capturedProcessor = listener;
+                capturedIdentity = identity;
                 return mockSubscription;
             }
 
             @Override
-            public @NotNull Subscription register(Object target) {
+            public @NotNull Subscription register(Object target, Identity identity) {
+                capturedTarget = target;
+                capturedIdentity = identity;
                 return mockSubscription;
             }
 
@@ -84,32 +95,45 @@ class IEventBusTests {
 
         @Test
         void register_WithTypeAndProcessor_ShouldDefaultToPriorityNormal() {
-            Subscription result = bus.register(TestEvent.class, mockProcessor);
+            Subscription result = bus.register(TestEvent.class, mockProcessor, mockIdentity);
 
             assertEquals(mockSubscription, result);
             assertEquals(TestEvent.class, capturedClass);
             assertEquals(Priority.NORMAL, capturedPriority);
             assertEquals(mockProcessor, capturedProcessor);
+            assertEquals(mockIdentity, capturedIdentity);
         }
 
         @Test
         void register_WithProcessorAndPriority_ShouldUseBusType() {
-            Subscription result = bus.register(mockProcessor, Priority.HIGH);
+            Subscription result = bus.register(mockProcessor, Priority.HIGH, mockIdentity);
 
             assertEquals(mockSubscription, result);
             assertEquals(TestEvent.class, capturedClass);
             assertEquals(Priority.HIGH, capturedPriority);
             assertEquals(mockProcessor, capturedProcessor);
+            assertEquals(mockIdentity, capturedIdentity);
         }
 
         @Test
         void register_WithProcessorOnly_ShouldDefaultToBusTypeAndPriorityNormal() {
-            Subscription result = bus.register(mockProcessor);
+            Subscription result = bus.register(mockProcessor, mockIdentity);
 
             assertEquals(mockSubscription, result);
             assertEquals(TestEvent.class, capturedClass);
             assertEquals(Priority.NORMAL, capturedPriority);
             assertEquals(mockProcessor, capturedProcessor);
+            assertEquals(mockIdentity, capturedIdentity);
+        }
+
+        @Test
+        void register_WithObjectTarget_ShouldPassIdentityDirectly() {
+            Object target = new Object();
+            Subscription result = bus.register(target, mockIdentity);
+
+            assertEquals(mockSubscription, result);
+            assertEquals(target, capturedTarget);
+            assertEquals(mockIdentity, capturedIdentity);
         }
     }
 }

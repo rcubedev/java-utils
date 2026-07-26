@@ -29,7 +29,6 @@ public abstract class AbstractMethodHandleLinker implements LinkerEngine {
         return linkWeak(context, unreflected);
     }
 
-    // hooks
     protected abstract <T extends Event> BindingFactory<T> linkStrong(
             LinkageContext<T> context, UnreflectedContext unreflected) throws StructuralLinkageException;
 
@@ -45,7 +44,12 @@ public abstract class AbstractMethodHandleLinker implements LinkerEngine {
         boolean isStatic = Modifier.isStatic(method.getModifiers());
         Class<?> targetClass = context.targetClass();
 
-        lookup = lookup.in(targetClass);
+        try {
+            lookup = MethodHandles.privateLookupIn(targetClass, lookup);
+        } catch (IllegalAccessException e) {
+            // fallback; LMF will fail but we can fallback to MH invocation
+            lookup = lookup.in(targetClass);
+        }
 
         MethodHandle handle;
         try {

@@ -2,6 +2,7 @@ package com.github.rcubedev.example.event.impl.bus;
 
 import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventProcessor;
+import com.github.rcubedev.example.event.api.Identity;
 import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.spi.*;
 import com.github.rcubedev.example.event.impl.bus.registry.RegistrationBuffer;
@@ -67,7 +68,7 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     }
 
     @Override
-    public @NotNull <E extends B> Subscription register(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
+    public @NotNull <E extends B> Subscription register(Class<E> eventType, Priority priority, EventProcessor<E> listener, Identity identity) {
         Subscription sub = this.factory.createBasic(eventType, priority, listener);
 
         dispatcher.update(() -> {
@@ -78,10 +79,10 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     }
 
     @Override
-    public @NotNull Subscription register(Object target) {
+    public @NotNull Subscription register(Object target, Identity identity) {
         List<BatchedSubscription> subscriptions = new ArrayList<>();
         RegistrationBuffer<B> registrar = this.sessionFactory.create(this.factory, subscriptions);
-        this.compiler.build(target, registrar);
+        this.compiler.build(target, identity, registrar);
 
         this.dispatcher.update(() -> {
             registrar.flush(this.registry);

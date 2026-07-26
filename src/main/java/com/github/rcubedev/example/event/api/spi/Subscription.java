@@ -6,7 +6,7 @@ package com.github.rcubedev.example.event.api.spi;
  * Calling {@link #unsubscribe()} or {@link #close()} removes the associated 
  * listeners from the bus.
  */
-@FunctionalInterface // todo idk
+@FunctionalInterface
 public interface Subscription extends AutoCloseable {
 
     void unsubscribe();

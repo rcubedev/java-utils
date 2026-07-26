@@ -4,6 +4,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import com.github.rcubedev.example.event.api.Event;
+import com.github.rcubedev.example.event.api.Identity;
 import com.github.rcubedev.example.event.api.SubscribeEvent;
 import com.github.rcubedev.example.event.api.spi.Registrar;
 import org.jetbrains.annotations.Nullable;
@@ -34,7 +35,7 @@ public final class EventSubscriberCompiler<B extends Event> {
      * @param registrar The way to register to the bus todo
      * @throws IllegalArgumentException if invalid listener or no {@link SubscribeEvent @SubscribeEvent} methods found
      */
-    public void build(Object target, Registrar<B> registrar) {
+    public void build(Object target, Identity identity, Registrar<B> registrar) {
         if (target == null) throw new IllegalArgumentException("Cannot register null listener");
 
         Class<?> type = target.getClass();
@@ -49,7 +50,7 @@ public final class EventSubscriberCompiler<B extends Event> {
                 throw new IllegalArgumentException(
                         "register() was called with a Method not annotated with @SubscribeEvent: " + method);
             }
-            registerListener(null, method, registrar);
+            registerListener(null, method, identity, registrar);
             return;
         }
 
@@ -64,7 +65,7 @@ public final class EventSubscriberCompiler<B extends Event> {
             if (!method.isAnnotationPresent(SubscribeEvent.class)) continue;
 
             if (Modifier.isStatic(method.getModifiers()) == isStatic) {
-                registerListener(isStatic ? null : target, method, registrar);
+                registerListener(isStatic ? null : target, method, identity, registrar);
             } else {
                 if (isStatic) {
                     throw new IllegalArgumentException("""
@@ -92,8 +93,8 @@ public final class EventSubscriberCompiler<B extends Event> {
     }
 
     //@SuppressWarnings("unchecked")
-    private void registerListener(@Nullable Object instance, Method method, Registrar<B> registrar) {
-        this.compiler.registerListener(instance, method, registrar);
+    private void registerListener(@Nullable Object instance, Method method, Identity identity, Registrar<B> registrar) {
+        this.compiler.registerListener(instance, method, identity, registrar);
         /*HandlerFactory handlerFactory = CLASS_METAFACTORIES.computeIfAbsent(new MethodKey(method), methodKey -> createFactory(methodKey.clazz(), method));
 
         Class<E> eventType = (Class<E>) paramType;

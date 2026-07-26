@@ -1,4 +1,4 @@
-package com.github.rcubedev.example.event.impl.bus.dispatch.table.builder;
+package com.github.rcubedev.example.event.impl.bus.dispatch.table.resolver;
 
 import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventProcessor;
@@ -12,13 +12,14 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class HierarchyFallbackResolverTest {
+class HierarchyResolverTest {
 
     @Mock
     private RegisteredParentResolver<Event> mockResolver;
@@ -29,8 +30,8 @@ class HierarchyFallbackResolverTest {
     @Mock
     private EventProcessor<Event> mockProcessor2;
 
-    private Map<Class<? extends Event>, EventProcessor<? super Event>[]> preComputedPool;
-    private HierarchyFallbackResolver<Event> fallbackResolver;
+    private Map<Class<? extends Event>, List<EventProcessor<? super Event>>> preComputedPool;
+    private HierarchyResolver<Event> fallbackResolver;
 
     static class TargetUnregisteredEvent extends TestEvent {}
     static class ResolvedParentEvent extends TestEvent {}
@@ -38,7 +39,7 @@ class HierarchyFallbackResolverTest {
     @BeforeEach
     void setUp() {
         preComputedPool = new HashMap<>();
-        fallbackResolver = new HierarchyFallbackResolver<>(mockResolver, preComputedPool);
+        fallbackResolver = new HierarchyResolver<>(mockResolver, preComputedPool);
     }
 
     @Test
@@ -47,10 +48,10 @@ class HierarchyFallbackResolverTest {
 
         when(mockResolver.getRegisteredParentAsExtendsBus(TargetUnregisteredEvent.class)).thenReturn(null);
 
-        EventProcessor<? super Event>[] result = fallbackResolver.resolve(unregisteredType);
+        List<EventProcessor<? super Event>> result = fallbackResolver.resolve(unregisteredType);
 
         assertNotNull(result);
-        assertEquals(0, result.length);
+        assertEquals(0, result.size());
     }
 
     @Test
@@ -59,29 +60,30 @@ class HierarchyFallbackResolverTest {
 
         Mockito.<Class<?>>when(mockResolver.getRegisteredParentAsExtendsBus(TargetUnregisteredEvent.class)).thenReturn(ResolvedParentEvent.class);
 
-        EventProcessor<? super Event>[] result = fallbackResolver.resolve(unregisteredType);
+        preComputedPool.put(ResolvedParentEvent.class, List.of());
+
+        List<EventProcessor<? super Event>> result = fallbackResolver.resolve(unregisteredType);
 
         assertNotNull(result);
-        assertEquals(0, result.length);
+        assertEquals(0, result.size());
     }
 
     @Test
     void testResolveWhenParentIsPresentInPoolReturnsPreComputedProcessors() {
         Class<?> unregisteredType = TargetUnregisteredEvent.class;
 
-        @SuppressWarnings("unchecked")
-        EventProcessor<? super Event>[] expectedProcessors = new EventProcessor[]{mockProcessor1, mockProcessor2};
+        List<EventProcessor<? super Event>> expectedProcessors = List.of(mockProcessor1, mockProcessor2);
 
         Mockito.<Class<?>>when(mockResolver.getRegisteredParentAsExtendsBus(TargetUnregisteredEvent.class)).thenReturn(ResolvedParentEvent.class);
 
         preComputedPool.put(ResolvedParentEvent.class, expectedProcessors);
 
-        EventProcessor<? super Event>[] result = fallbackResolver.resolve(unregisteredType);
+        List<EventProcessor<? super Event>> result = fallbackResolver.resolve(unregisteredType);
 
         assertNotNull(result);
         assertSame(expectedProcessors, result);
-        assertEquals(2, result.length);
-        assertEquals(mockProcessor1, result[0]);
-        assertEquals(mockProcessor2, result[1]);
+        assertEquals(2, result.size());
+        assertEquals(mockProcessor1, result.getFirst());
+        assertEquals(mockProcessor2, result.get(1));
     }
 }

@@ -7,7 +7,6 @@ import com.github.rcubedev.example.event.api.TestEvent;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.impl.bus.handler.ArrayBackedEventSink;
 import com.github.rcubedev.example.event.impl.bus.registry.factory.EventSinkFactory;
-import com.github.rcubedev.example.event.impl.bus.registry.factory.RegistrySnapshotFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +23,7 @@ class HandlerRegistryTests {
 
     @Mock private Subscription mockSub;
     @Mock private EventProcessor<TestEvent> mockProcessor;
-    @Mock private RegistrySnapshotFactory<Event> mockSnapshotFactory;
+    @Mock private RegistrySnapshot.Factory<Event> mockSnapshotFactory;
     @Mock private EventSinkFactory<Event> mockSinkFactory;
     @Mock private RegistrySnapshot<Event> mockSnapshot;
 

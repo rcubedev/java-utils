@@ -11,12 +11,13 @@ import com.github.rcubedev.example.test.UnitTestIgnored;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.concurrent.locks.StampedLock;
 import java.util.function.Supplier;
 
 public class Dispatcher<B extends Event> {
     private final Class<B> busType;
     private final RecursionGuard guard;
-    private final Object lock = new Object();
+    private final StampedLock lock = new StampedLock();
 
     private volatile DispatchTable<B> table;
 
@@ -32,17 +33,36 @@ public class Dispatcher<B extends Event> {
     }
 
     public void update(@NotNull Supplier<@Nullable RegistrySnapshot<B>> task) {
-        synchronized (lock) {
+        long stamp = lock.writeLock();
+        try {
             RegistrySnapshot<B> snapshot = task.get();
             if (snapshot == null) return;
+
+            DispatchTable<B> oldTable = this.table;
             this.table = DispatchTableBuilder.create(busType).setSnapshot(snapshot).build();
+            oldTable.close();
+        } finally {
+            lock.unlockWrite(stamp);
         }
     }
 
     public <E extends B> void dispatch(@NotNull E event) throws EventStackOverflowException {
+        long stamp = lock.tryOptimisticRead();
+        DispatchTable<B> stableTable = this.table;
+
+        if (!lock.validate(stamp)) {
+            stamp = lock.readLock();
+            try {
+                stableTable = this.table;
+            } finally {
+                lock.unlockRead(stamp);
+            }
+        }
+
         int previous = this.guard.increment();
+        // todo(jdk25): scoped values
         try {
-            table.dispatch(event);
+            stableTable.dispatch(event);
         } finally {
             this.guard.resetTo(previous);
         }

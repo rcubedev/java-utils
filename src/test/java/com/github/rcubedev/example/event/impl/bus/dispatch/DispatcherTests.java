@@ -15,6 +15,9 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
+import java.util.concurrent.locks.StampedLock;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -57,6 +60,29 @@ class DispatcherTests {
 
             verify(guard).resetTo(5);
         }
+
+        // fixme jank: uses reflection, mocks things that do not own (StampedLock)
+        @Test
+        void dispatch_RecoversViaReadLockWhenOptimisticReadIsInvalidated() throws Exception {
+            Field lockField = Dispatcher.class.getDeclaredField("lock");
+            lockField.setAccessible(true);
+
+            StampedLock realLock = (StampedLock) lockField.get(dispatcher);
+            StampedLock lockSpy = spy(realLock);
+
+            lockField.set(dispatcher, lockSpy);
+
+            doReturn(false).when(lockSpy).validate(anyLong());
+            when(guard.increment()).thenReturn(7);
+
+            TestEvent event = new TestEvent();
+            dispatcher.dispatch(event);
+
+            verify(lockSpy).readLock();
+            verify(lockSpy).unlockRead(anyLong());
+            verify(initialTable).dispatch(event);
+            verify(guard).resetTo(7);
+        }
     }
 
     @Nested
@@ -67,6 +93,7 @@ class DispatcherTests {
             try (MockedStatic<DispatchTableBuilder> builderMock = mockStatic(DispatchTableBuilder.class)) {
                 dispatcher.update(() -> null);
                 builderMock.verifyNoInteractions();
+                verify(initialTable, never()).close();
             }
         }
 
@@ -82,6 +109,8 @@ class DispatcherTests {
                 when(builder.build()).thenReturn(newTable);
 
                 dispatcher.update(() -> snapshot);
+
+                verify(initialTable, times(1)).close();
 
                 TestEvent testEvent = new TestEvent();
                 dispatcher.dispatch(testEvent);

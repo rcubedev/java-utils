@@ -6,7 +6,7 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * Base class for all events.
- * @implNote If cancellable, implement {@link Cancellable}
+ * @implSpec If cancellable, implement {@link Cancellable}
  * @see IEventBus
  */
 public abstract class Event {

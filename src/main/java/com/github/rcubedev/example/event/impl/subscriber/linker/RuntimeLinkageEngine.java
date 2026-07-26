@@ -30,6 +30,7 @@ public final class RuntimeLinkageEngine implements LinkerEngine {
             return primary.linkStrong(context);
         } catch (ModuleAccessException | MemberAccessException | StructuralLinkageException e) {
             try {
+                System.out.println("FALLING BACK!!! THIS IS NOT NICE");
                 return fallback.linkStrong(context);
             } catch (ModuleAccessException | MemberAccessException | StructuralLinkageException ex) {
                 e.addSuppressed(ex);

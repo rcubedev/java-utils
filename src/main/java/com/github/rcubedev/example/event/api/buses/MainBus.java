@@ -2,7 +2,9 @@ package com.github.rcubedev.example.event.api.buses;
 
 import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventBusBuilder;
+import com.github.rcubedev.example.event.api.EventBusRegistry;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
+import com.github.rcubedev.example.event.impl.bus.EventBus;
 
 /**
  * The main event bus. Accepts any {@link Event} subtype.
@@ -34,4 +36,9 @@ public final class MainBus {
     public static final IEventBus<Event> BUS = EventBusBuilder.create(Event.class);
 
     private MainBus() {}
+
+//    static {
+//        BUS = new EventBus<>(Event.class, 128);
+//        EventBusRegistry.getInstance().register(BUS);
+//    }
 }

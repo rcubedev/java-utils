@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class RegisteredParentResolverTest {
+class RegisteredParentResolverTests {
 
     @Mock
     private RegistrySnapshot<Event> mockSnapshot;

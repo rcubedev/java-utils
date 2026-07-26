@@ -1,12 +1,8 @@
 package com.github.rcubedev.example.event.impl;
 
-import com.github.rcubedev.example.event.api.Event;
-import com.github.rcubedev.example.event.api.EventBusRegistry;
-import com.github.rcubedev.example.event.api.EventProcessor;
-import com.github.rcubedev.example.event.api.Priority;
+import com.github.rcubedev.example.event.api.*;
 import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
 import com.github.rcubedev.example.event.api.spi.RecursionBypass;
-import com.github.rcubedev.example.event.api.SubscribeEvent;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
 import com.github.rcubedev.example.event.api.spi.Linkable;
@@ -186,7 +182,7 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     }
 
     @Override
-    public <E extends B> @NotNull Subscription register(Class<E> eventType, Priority priority, EventProcessor<E> listener) {
+    public <E extends B> @NotNull Subscription register(Class<E> eventType, Priority priority, EventProcessor<E> listener, Identity identity) {
         Subscription sub = createSubscription(eventType, priority, listener);
 
         synchronized (rebuildLock) {
@@ -197,7 +193,7 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
     }
 
     @Override
-    public @NotNull Subscription register(Object target) {
+    public @NotNull Subscription register(Object target, Identity identity) {
         List<BatchedSubscription> subscriptions = new ArrayList<>();
         // use anon to make compiler happy. swapped to named to annt with UnitTestIgnored.
         @UnitTestIgnored
@@ -215,7 +211,7 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
         Registrar<B> register = new RegistrarImpl();
 
         synchronized (rebuildLock) {
-            new EventSubscriberCompiler<>(busType).build(target, register);
+            new EventSubscriberCompiler<>(busType).build(target, identity, register);
             rebuild();
         }
         return new MasterSubscription(subscriptions.toArray(BatchedSubscription[]::new), () -> {

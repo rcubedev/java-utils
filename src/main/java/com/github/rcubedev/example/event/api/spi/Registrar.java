@@ -6,7 +6,7 @@ import com.github.rcubedev.example.event.api.Priority;
 import org.jetbrains.annotations.NotNull;
 
 @FunctionalInterface
-// todo
+// todo flushing is not handled by registrar directly, but is done after. maybe add it in a method here
 public interface Registrar<T extends Event> {
     /**
      * Accepts a listener and returns a subscription.

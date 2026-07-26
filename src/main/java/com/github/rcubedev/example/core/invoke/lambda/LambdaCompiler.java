@@ -9,6 +9,7 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -109,11 +110,14 @@ public class LambdaCompiler<T> {
     private static SamInfo findSam(Class<?> functionalInterface) {
         if (!functionalInterface.isInterface())
             throw new IllegalArgumentException("functionalInterface must be an interface");
-        Method method = Arrays.stream(functionalInterface.getMethods())
+        List<Method> absMethods = Arrays.stream(functionalInterface.getMethods())
                 .filter(m -> Modifier.isAbstract(m.getModifiers()))
                 .filter(m -> !m.isDefault())
                 .filter(m -> !isFromObject(m))
-                .findFirst().orElseThrow(() -> new IllegalArgumentException("functionalInterface must have a single abstract method."));
+                .toList();
+        if (absMethods.size() != 1)
+            throw new IllegalArgumentException("Expected exactly one abstract method, found " + absMethods.size());
+        Method method = absMethods.getFirst();
         return new SamInfo(method.getName(), MethodType.methodType(method.getReturnType(), method.getParameterTypes()));
     }
 

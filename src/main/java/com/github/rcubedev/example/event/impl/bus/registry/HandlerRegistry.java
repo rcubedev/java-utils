@@ -6,7 +6,6 @@ import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.impl.bus.handler.ArrayBackedEventSink;
 import com.github.rcubedev.example.event.impl.bus.registry.factory.EventSinkFactory;
-import com.github.rcubedev.example.event.impl.bus.registry.factory.RegistrySnapshotFactory;
 import com.github.rcubedev.example.test.UnitTestIgnored;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,14 +17,14 @@ public class HandlerRegistry<B extends Event> {
     // if getting from Class<T>
     private final Map<Class<? extends B>, Map<Priority, ArrayBackedEventSink<? extends B>>> handlers = new HashMap<>();
     private final EventSinkFactory<B> sinkFactory;
-    private final RegistrySnapshotFactory<B> snapshotFactory;
+    private final RegistrySnapshot.Factory<B> snapshotFactory;
 
     @UnitTestIgnored
     public HandlerRegistry() {
-        this(ArrayBackedEventSink::new, new RegistrySnapshotFactory<>());
+        this(ArrayBackedEventSink::new, RegistrySnapshot::create);
     }
 
-    HandlerRegistry(EventSinkFactory<B> sinkFactory, RegistrySnapshotFactory<B> snapshotFactory) {
+    HandlerRegistry(EventSinkFactory<B> sinkFactory, RegistrySnapshot.Factory<B> snapshotFactory) {
         this.sinkFactory = sinkFactory;
         this.snapshotFactory = snapshotFactory;
     }

@@ -5,6 +5,7 @@ import com.github.rcubedev.example.event.api.spi.RecursionBypass;
 import org.jetbrains.annotations.NotNull;
 
 public class RecursionGuard {
+    // todo(jdk25): scoped values
     private static final ThreadLocal<int[]> depth = ThreadLocal.withInitial(() -> new int[]{0});
     private final int maxStackDepth;
 

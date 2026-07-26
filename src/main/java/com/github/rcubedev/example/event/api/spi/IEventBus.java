@@ -1,14 +1,11 @@
 package com.github.rcubedev.example.event.api.spi;
 
-import com.github.rcubedev.example.event.api.Event;
-import com.github.rcubedev.example.event.api.EventBusRegistry;
-import com.github.rcubedev.example.event.api.EventProcessor;
-import com.github.rcubedev.example.event.api.Priority;
-import com.github.rcubedev.example.event.api.SubscribeEvent;
+import com.github.rcubedev.example.event.api.*;
 import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
+// todo facade this w identity owned by the facade
 /**
  * Interface for event buses typed to a specific {@link Event} subclass {@link B}.
  *
@@ -88,10 +85,13 @@ public interface IEventBus<B extends Event> {
      *
      * @param eventType The class of the event to listen for
      * @param listener  The processor to invoke
+     * @param identity  The {@link Identity} of the registering caller
      * @param <E>       The specific event type
+     * @return the {@link Subscription} for this handler
      */
-    default <E extends B> @NotNull Subscription register(Class<E> eventType, EventProcessor<E> listener) {
-        return register(eventType, Priority.NORMAL, listener);
+    default <E extends B> @NotNull Subscription register(Class<E> eventType, EventProcessor<E> listener,
+                                                         Identity identity) {
+        return register(eventType, Priority.NORMAL, listener, identity);
     }
 
     /**
@@ -104,9 +104,12 @@ public interface IEventBus<B extends Event> {
      * @param eventType The class of the event to listen for
      * @param priority  The priority of this listener
      * @param listener  The processor to invoke
+     * @param identity  The {@link Identity} of the registering caller
      * @param <E>       The specific event type
+     * @return the {@link Subscription} for this handler
      */
-    <E extends B> @NotNull Subscription register(Class<E> eventType, Priority priority, EventProcessor<E> listener);
+    <E extends B> @NotNull Subscription register(Class<E> eventType, Priority priority, EventProcessor<E> listener,
+                                                 Identity identity);
 
     /**
      * Register a direct {@link EventProcessor} for the base bus type {@link B} at a specific priority.
@@ -115,11 +118,13 @@ public interface IEventBus<B extends Event> {
      * An unhandled exception thrown by the processor will stop the dispatch of
      * the current event for all remaining listeners.
      *
-     * @param priority  The priority of this listener
-     * @param listener  The processor to invoke
+     * @param priority The priority of this listener
+     * @param listener The processor to invoke
+     * @param identity The {@link Identity} of the registering caller
+     * @return the {@link Subscription} for this handler
      */
-    default @NotNull Subscription register(EventProcessor<B> listener, Priority priority) {
-        return register(getBusType(), priority, listener);
+    default @NotNull Subscription register(EventProcessor<B> listener, Priority priority, Identity identity) {
+        return register(getBusType(), priority, listener, identity);
     }
 
     /**
@@ -130,9 +135,11 @@ public interface IEventBus<B extends Event> {
      * the current event for all remaining listeners.
      *
      * @param listener The processor to invoke
+     * @param identity The {@link Identity} of the registering caller
+     * @return the {@link Subscription} for this handler
      */
-    default @NotNull Subscription register(EventProcessor<B> listener) {
-        return register(getBusType(), listener);
+    default @NotNull Subscription register(EventProcessor<B> listener, Identity identity) {
+        return register(getBusType(), listener, identity);
     }
 
     /**
@@ -144,9 +151,11 @@ public interface IEventBus<B extends Event> {
      * the current event for all remaining listeners.
      *
      * @param target Listener instance or {@link Class} for static methods
+     * @param identity The {@link Identity} of the registering caller
+     * @return a {@link Subscription} wrapping all listeners for the {@code target}
      * @throws IllegalArgumentException if no valid {@link SubscribeEvent @SubscribeEvent} methods are found.
      */
-    @NotNull Subscription register(Object target);
+    @NotNull Subscription register(Object target, Identity identity);
 
     /**
      * Get the base event type this bus accepts.

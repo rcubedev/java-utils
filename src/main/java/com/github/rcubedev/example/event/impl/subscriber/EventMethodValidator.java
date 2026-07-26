@@ -5,15 +5,15 @@ import com.github.rcubedev.example.event.api.Event;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-public final class EventMethodValidator<B extends Event> implements MethodValidator<B> {
+public final class EventMethodValidator<E extends Event> implements MethodValidator<E> {
 
-    private final Class<B> eventType;
+    private final Class<E> eventType;
 
-    public EventMethodValidator(Class<B> eventType) {
+    public EventMethodValidator(Class<E> eventType) {
         this.eventType = eventType;
     }
 
-    public <E extends B> Class<E> validate(Method method) throws IllegalArgumentException {
+    public Class<? extends E> validate(Method method) throws IllegalArgumentException {
         if (!Modifier.isPublic(method.getModifiers())) {
             throw new IllegalArgumentException("@SubscribeEvent method must be public: " + method);
         }
@@ -42,7 +42,7 @@ public final class EventMethodValidator<B extends Event> implements MethodValida
         }
 
         @SuppressWarnings("unchecked") // safe as checked if paramType is a subtype of eventType
-        Class<E> eventType = (Class<E>) paramType;
+        Class<? extends E> eventType = (Class<? extends E>) paramType;
         return eventType;
     }
 

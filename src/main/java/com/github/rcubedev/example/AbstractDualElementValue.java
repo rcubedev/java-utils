@@ -31,7 +31,7 @@ public abstract class AbstractDualElementValue<A, B, S extends AbstractDualEleme
     private final boolean isA;
 
     /**
-     * Initializes the element
+     * Initialises the element
      *
      * @param value the value to store; an instance of either {@link A} or {@link B}
      * @param typeA the {@link TypedClass} object of {@link A}

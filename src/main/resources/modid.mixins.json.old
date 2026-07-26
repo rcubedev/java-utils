@@ -1,6 +1,6 @@
 {
 	"required": true,
-	"package": "com.github.rcubedev.example.mixin",
+	"package": "com.github.rcubedev.example.config",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
       "WrappedConfigAccessor"
