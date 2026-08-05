@@ -2,7 +2,7 @@ module com.github.rcubedev.example {
     requires org.slf4j; // fixme this might be gone soon
 
     requires com.google.common;
-    //requires kaleido.config; // fixme possible own config lib in future
+    requires kaleido.config; // fixme possible own config lib in future
 
     requires static org.jetbrains.annotations;
 
