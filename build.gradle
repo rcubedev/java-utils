@@ -101,15 +101,16 @@ java {
     modularity.inferModulePath = true
 }
 
+def archiveNameProvider = project.base.archivesName
 jar {
-    inputs.property "archivesName", project.base.archivesName
+    inputs.property "archivesName", archiveNameProvider
 
     manifest {
         attributes('FMLModType': 'LIBRARY')
     }
 
     from("LICENSE") {
-        rename { "${it}_${inputs.properties.archivesName}" }
+        rename { "${it}_${archiveNameProvider.get()}" }
     }
 }
 
