@@ -3,7 +3,7 @@ package com.github.rcubedev.example.event.impl.subscription;
 import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
-import com.github.rcubedev.example.event.api.spi.Linkable;
+import com.github.rcubedev.example.event.api.spi.SubscriptionAware;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.impl.bus.registry.HandlerRegistry;
 import com.github.rcubedev.example.event.impl.bus.dispatch.Dispatcher;
@@ -51,7 +51,7 @@ public class SubscriptionFactory<B extends Event> {
     }
 
     private <T extends Subscription> T link(T sub, Object listener) {
-        if (listener instanceof Linkable linkable) linkable.setSubscription(sub);
+        if (listener instanceof SubscriptionAware linkable) linkable.acceptSubscription(sub);
         return sub;
     }
 }

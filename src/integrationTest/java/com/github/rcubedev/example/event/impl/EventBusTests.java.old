@@ -2,7 +2,7 @@ package com.github.rcubedev.example.event.impl;
 
 import com.github.rcubedev.example.event.api.*;
 import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
-import com.github.rcubedev.example.event.api.spi.Linkable;
+import com.github.rcubedev.example.event.api.spi.SubscriptionAware;
 import com.github.rcubedev.example.event.api.spi.RecursionBypass;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.test.TestableDispatchTable;

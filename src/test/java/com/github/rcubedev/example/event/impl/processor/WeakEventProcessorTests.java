@@ -1,7 +1,7 @@
 package com.github.rcubedev.example.event.impl.processor;
 
 import com.github.rcubedev.example.event.api.TestEvent;
-import com.github.rcubedev.example.event.api.spi.Linkable;
+import com.github.rcubedev.example.event.api.spi.SubscriptionAware;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,7 +31,7 @@ class WeakEventProcessorTests {
     void process_ShouldInvokeProcessor_WhenTargetAlive() throws Exception {
         Object target = new Object();
         WeakEventProcessor<Object, TestEvent> processor = new WeakEventProcessor<>(target, mockInvoker);
-        processor.setSubscription(mockSubscription);
+        processor.acceptSubscription(mockSubscription);
         TestEvent event = new TestEvent();
 
         processor.process(event);
@@ -47,7 +47,7 @@ class WeakEventProcessorTests {
             Object target = new Object();
             processor = new WeakEventProcessor<>(target, mockInvoker);
         }
-        processor.setSubscription(mockSubscription);
+        processor.acceptSubscription(mockSubscription);
         WeakEventProcessor<Object, TestEvent> finalProcessor = processor;
 
         // todo this kinda bad; we can create own own wrapping weak ref
@@ -67,11 +67,11 @@ class WeakEventProcessorTests {
     }
 
     @Test
-    void setSubscription_ShouldImplementLinkable() {
+    void acceptSubscription_ShouldImplementLinkable() {
         Object target = new Object();
         WeakEventProcessor<Object, TestEvent> processor = new WeakEventProcessor<>(target, mockInvoker);
 
-        assertInstanceOf(Linkable.class, processor);
-        assertDoesNotThrow(() -> processor.setSubscription(mockSubscription));
+        assertInstanceOf(SubscriptionAware.class, processor);
+        assertDoesNotThrow(() -> processor.acceptSubscription(mockSubscription));
     }
 }

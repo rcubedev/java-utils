@@ -2,11 +2,7 @@ package com.github.rcubedev.example.event.impl;
 
 import com.github.rcubedev.example.event.api.*;
 import com.github.rcubedev.example.event.api.exceptions.EventStackOverflowException;
-import com.github.rcubedev.example.event.api.spi.RecursionBypass;
-import com.github.rcubedev.example.event.api.spi.Subscription;
-import com.github.rcubedev.example.event.api.spi.IEventBus;
-import com.github.rcubedev.example.event.api.spi.Linkable;
-import com.github.rcubedev.example.event.api.spi.Registrar;
+import com.github.rcubedev.example.event.api.spi.*;
 import com.github.rcubedev.example.event.impl.bus.handler.ArrayBackedEventSink;
 import com.github.rcubedev.example.event.impl.subscriber.EventSubscriberCompiler;
 import com.github.rcubedev.example.event.impl.subscription.BasicSubscription;
@@ -262,7 +258,7 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
         };
 
         Subscription sub = new BasicSubscription(unregister);
-        if (listener instanceof Linkable linkable) linkable.setSubscription(sub);
+        if (listener instanceof SubscriptionAware linkable) linkable.acceptSubscription(sub);
         return sub;
     }
 
@@ -275,7 +271,7 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
         };
 
         BatchedSubscription sub = new BatchedSubscription(unregister, unsubscribe);
-        if (listener instanceof Linkable linkable) linkable.setSubscription(sub);
+        if (listener instanceof SubscriptionAware linkable) linkable.acceptSubscription(sub);
         return sub;
     }
 

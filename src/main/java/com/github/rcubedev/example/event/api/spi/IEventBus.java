@@ -19,6 +19,8 @@ import org.jetbrains.annotations.NotNull;
  *               <li>By {@link Priority} (from {@link Priority#LOWEST} to {@link Priority#MONITOR}).</li>
  *               <li>Within the same priority, by hierarchy (superclasses before subclasses).</li>
  *           </ol>
+ *           Registered {@link EventProcessor} instances may implement {@link SubscriptionAware} to receive
+ *           the {@link Subscription} created for their registration.
  *
  * @see EventBusRegistry
  * @param <B> The base event type this bus accepts

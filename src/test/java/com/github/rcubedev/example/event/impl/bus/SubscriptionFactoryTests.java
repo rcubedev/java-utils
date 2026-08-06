@@ -3,7 +3,7 @@ package com.github.rcubedev.example.event.impl.bus;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Priority;
 import com.github.rcubedev.example.event.api.TestEvent;
-import com.github.rcubedev.example.event.api.spi.Linkable;
+import com.github.rcubedev.example.event.api.spi.SubscriptionAware;
 import com.github.rcubedev.example.event.api.spi.Subscription;
 import com.github.rcubedev.example.event.impl.subscription.BasicSubscription;
 import com.github.rcubedev.example.event.impl.subscription.SubscriptionFactory;
@@ -143,12 +143,12 @@ class SubscriptionFactoryTests {
 
         @Test
         void link_ShouldInjectSubscription_WhenListenerIsLinkable() {
-            class LinkableListener implements EventProcessor<TestEvent>, Linkable {
+            class SubscriptionAwareListener implements EventProcessor<TestEvent>, SubscriptionAware {
                 Subscription injected;
                 @Override public void process(TestEvent event) {}
-                @Override public void setSubscription(Subscription s) { this.injected = s; }
+                @Override public void acceptSubscription(Subscription s) { this.injected = s; }
             }
-            LinkableListener listener = new LinkableListener();
+            SubscriptionAwareListener listener = new SubscriptionAwareListener();
             BasicSubscription mockBasicSub = mock(BasicSubscription.class);
             when(basicFactory.create(any())).thenReturn(mockBasicSub);
 
