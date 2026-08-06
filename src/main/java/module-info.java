@@ -6,19 +6,24 @@ module com.github.rcubedev.example {
 
     requires static org.jetbrains.annotations;
 
-    exports com.github.rcubedev.example.event.api;
-    exports com.github.rcubedev.example.event.api.spi;
-
-    exports com.github.rcubedev.example.services.api;
-    exports com.github.rcubedev.example.services.api.spi;
-
-    //fixme temp
-    exports com.github.rcubedev.example.event.api.buses;
-    exports com.github.rcubedev.example.event.api.exceptions;
-    exports com.github.rcubedev.example.event.api.hooks;
     exports com.github.rcubedev.example.config;
     exports com.github.rcubedev.example.config.elements;
     exports com.github.rcubedev.example.config.serialization;
+
+    exports com.github.rcubedev.example.event.api;
+    exports com.github.rcubedev.example.event.api.buses;
+    exports com.github.rcubedev.example.event.api.exceptions;
+    exports com.github.rcubedev.example.event.api.hooks;
+    exports com.github.rcubedev.example.event.api.spi;
+
     exports com.github.rcubedev.example.reflect;
-    exports com.github.rcubedev.example.services.impl.layer;
+    exports com.github.rcubedev.example.reflect.util;
+
+    exports com.github.rcubedev.example.registry.api;
+    exports com.github.rcubedev.example.registry.api.exception;
+
+    exports com.github.rcubedev.example.services.api;
+    exports com.github.rcubedev.example.services.api.exception;
+    exports com.github.rcubedev.example.services.api.spi;
+    exports com.github.rcubedev.example.services.impl.layer; // fixme temp
 }
