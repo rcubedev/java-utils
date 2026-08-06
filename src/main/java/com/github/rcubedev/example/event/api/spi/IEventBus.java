@@ -81,9 +81,10 @@ public interface IEventBus<B extends Event> {
     /**
      * Register a direct {@link EventProcessor} for the given event type at {@link Priority#NORMAL}.
      * <p>
-     * <b>Important:</b> Processors should ideally handle their own exceptions.
-     * An unhandled exception thrown by the processor will stop the dispatch of
-     * the current event for all remaining listeners.
+     * <b>Important:</b> Processors should ideally handle their own exceptions.<br>
+     * Unless handled by the event bus implementation, an unhandled exception
+     * thrown by the processor will stop dispatch of the current event and prevent
+     * any remaining listeners from being invoked.
      *
      * @param eventType The class of the event to listen for
      * @param listener  The processor to invoke
@@ -99,9 +100,10 @@ public interface IEventBus<B extends Event> {
     /**
      * Register a direct {@link EventProcessor} for the given event type at a specific priority.
      * <p>
-     * <b>Important:</b> Processors should ideally handle their own exceptions.
-     * An unhandled exception thrown by the processor will stop the dispatch of
-     * the current event for all remaining listeners.
+     * <b>Important:</b> Processors should ideally handle their own exceptions.<br>
+     * Unless handled by the event bus implementation, an unhandled exception
+     * thrown by the processor will stop dispatch of the current event and prevent
+     * any remaining listeners from being invoked.
      *
      * @param eventType The class of the event to listen for
      * @param priority  The priority of this listener
@@ -116,9 +118,10 @@ public interface IEventBus<B extends Event> {
     /**
      * Register a direct {@link EventProcessor} for the base bus type {@link B} at a specific priority.
      * <p>
-     * <b>Important:</b> Processors should ideally handle their own exceptions.<br>
-     * An unhandled exception thrown by the processor will stop the dispatch of
-     * the current event for all remaining listeners.
+     * <b>Important:</b> Processors should ideally handle their own exceptions.<br><br>
+     * Unless handled by the event bus implementation, an unhandled exception
+     * thrown by the processor will stop dispatch of the current event and prevent
+     * any remaining listeners from being invoked.
      *
      * @param priority The priority of this listener
      * @param listener The processor to invoke
@@ -132,9 +135,10 @@ public interface IEventBus<B extends Event> {
     /**
      * Register a direct {@link EventProcessor} for the base bus type {@link B} at {@link Priority#NORMAL}.
      * <p>
-     * <b>Important:</b> Processors should ideally handle their own exceptions.<br>
-     * An unhandled exception thrown by the processor will stop the dispatch of
-     * the current event for all remaining listeners.
+     * <b>Important:</b> Processors should ideally handle their own exceptions.<br><br>
+     * Unless handled by the event bus implementation, an unhandled exception
+     * thrown by the processor will stop dispatch of the current event and prevent
+     * any remaining listeners from being invoked.
      *
      * @param listener The processor to invoke
      * @param identity The {@link Identity} of the registering caller
@@ -148,9 +152,10 @@ public interface IEventBus<B extends Event> {
      * Register a listener instance or {@link Class} with {@link SubscribeEvent @SubscribeEvent} methods.<br>
      * Only methods whose parameter type is a subtype of {@link B} will be registered.
      * <p>
-     * <b>Important:</b> Processors should ideally handle their own exceptions.
-     * An unhandled exception thrown by the processor will stop the dispatch of
-     * the current event for all remaining listeners.
+     * <b>Important:</b> Processors should ideally handle their own exceptions.<br>
+     * Unless handled by the event bus implementation, an unhandled exception
+     * thrown by the processor will stop dispatch of the current event and prevent
+     * any remaining listeners from being invoked.
      *
      * @param target Listener instance or {@link Class} for static methods
      * @param identity The {@link Identity} of the registering caller
