@@ -1,4 +1,4 @@
-package com.github.rcubedev.example;
+package com.github.rcubedev.example.config.elements;
 
 import java.util.List;
 

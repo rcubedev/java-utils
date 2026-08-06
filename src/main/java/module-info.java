@@ -14,8 +14,9 @@ module com.github.rcubedev.example {
 
     //fixme temp
     exports com.github.rcubedev.example.event.api.buses;
-    exports com.github.rcubedev.example;
     exports com.github.rcubedev.example.config;
+    exports com.github.rcubedev.example.config.elements;
+    exports com.github.rcubedev.example.config.serialization;
     exports com.github.rcubedev.example.reflect;
     exports com.github.rcubedev.example.services.impl.layer;
 }

@@ -1,4 +1,4 @@
-package com.github.rcubedev.example;
+package com.github.rcubedev.example.config.serialization;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;

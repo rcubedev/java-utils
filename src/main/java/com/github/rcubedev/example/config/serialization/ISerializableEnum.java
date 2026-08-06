@@ -1,10 +1,10 @@
-package com.github.rcubedev.example;
+package com.github.rcubedev.example.config.serialization;
 
 import folk.sisby.kaleido.lib.quiltconfig.api.values.ConfigSerializableObject;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * An interface for Enums that need to be serialized as Strings for QuiltConfig
+ * An interface for {@link Enum} types that need to be serialized as a {@link String} for QuiltConfig
  *
  * @param <T> The {@link Enum} implementing this interface.
  *
@@ -84,6 +84,7 @@ public interface ISerializableEnum<T extends Enum<T> & ISerializableEnum<T>> ext
 
     /**
      * Returns a copy of this enum constant.
+     * <p>
      * Since enums are immutable, this method simply returns the current instance.
      *
      * @return the current enum constant instance.

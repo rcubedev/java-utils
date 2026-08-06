@@ -1,5 +1,7 @@
-package com.github.rcubedev.example;
+package com.github.rcubedev.example.config.elements;
 
+import com.github.rcubedev.example.config.AllowConstructorFallback;
+import com.github.rcubedev.example.config.serialization.ISerializableEnum;
 import com.github.rcubedev.example.reflect.TypedClass;
 import folk.sisby.kaleido.lib.quiltconfig.api.values.ConfigSerializableObject;
 import org.jetbrains.annotations.NotNull;

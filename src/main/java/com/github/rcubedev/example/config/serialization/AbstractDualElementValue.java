@@ -1,8 +1,9 @@
-package com.github.rcubedev.example;
+package com.github.rcubedev.example.config.serialization;
 
 import java.lang.invoke.MethodHandles;
 import java.util.NoSuchElementException;
 
+import com.github.rcubedev.example.config.AllowConstructorFallback;
 import com.github.rcubedev.example.reflect.Argument;
 import com.github.rcubedev.example.reflect.IArgument;
 import com.github.rcubedev.example.reflect.JlsReflectionHelper;

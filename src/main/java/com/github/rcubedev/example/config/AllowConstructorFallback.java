@@ -1,4 +1,4 @@
-package com.github.rcubedev.example;
+package com.github.rcubedev.example.config;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * normally be logged if a preferred constructor signature is missing and a
  * fallback constructor is used instead.
  * <p>
- * This annotation does not change behavior on its own.
+ * This annotation does not change behaviour on its own.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
