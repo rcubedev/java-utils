@@ -1,13 +1,13 @@
 package com.github.rcubedev.example.event.api;
 
+import com.github.rcubedev.example.event.api.hooks.AfterDispatchHook;
+import com.github.rcubedev.example.event.api.hooks.BeforeDispatchHook;
 import com.github.rcubedev.example.event.api.hooks.ErrorHandler;
 import com.github.rcubedev.example.event.api.spi.IEventBus;
-import com.github.rcubedev.example.event.impl.EventBus;
 import com.github.rcubedev.example.event.impl.HookedEventBus;
+import com.github.rcubedev.example.event.impl.bus.EventBus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.function.Consumer;
 
 /**
  * A builder for creating {@link IEventBus} instances.
@@ -31,9 +31,10 @@ import java.util.function.Consumer;
 public final class EventBusBuilder<B extends Event> {
 
     private final @NotNull Class<B> busType;
-    private @Nullable Consumer<B> beforeDispatch;
-    private @Nullable Consumer<B> afterDispatch;
+    private @Nullable BeforeDispatchHook<B> beforeDispatch;
+    private @Nullable AfterDispatchHook<B> afterDispatch;
     private @Nullable ErrorHandler<B> errorHandler;
+    private boolean global = true;
     private int maxDepth = 128;
 
     private EventBusBuilder(@NotNull Class<B> busType) {
@@ -68,7 +69,7 @@ public final class EventBusBuilder<B extends Event> {
      * @param hook the pre-dispatch hook
      * @return this builder
      */
-    public @NotNull EventBusBuilder<B> beforeDispatch(@NotNull Consumer<B> hook) {
+    public @NotNull EventBusBuilder<B> beforeDispatch(@NotNull BeforeDispatchHook<B> hook) {
         this.beforeDispatch = hook;
         return this;
     }
@@ -81,7 +82,7 @@ public final class EventBusBuilder<B extends Event> {
      * @param hook the post-dispatch consumer
      * @return this builder
      */
-    public @NotNull EventBusBuilder<B> afterDispatch(@NotNull Consumer<B> hook) {
+    public @NotNull EventBusBuilder<B> afterDispatch(@NotNull AfterDispatchHook<B> hook) {
         this.afterDispatch = hook;
         return this;
     }
@@ -100,8 +101,23 @@ public final class EventBusBuilder<B extends Event> {
     }
 
     /**
-     * Sets the maximum recursion depth for event posting to prevent stack overflows
-     * from circular event logic. Defaults to 128.
+     * Whether the bus should be registered to {@link EventBusRegistry}
+     * <p>
+     * Default: {@code true}
+     *
+     * @param global if the bus should be registered
+     * @return this builder
+     */
+    public @NotNull EventBusBuilder<B> global(boolean global) {
+        this.global = global;
+        return this;
+    }
+
+    /**
+     * Sets the maximum recursion depth for event posting to prevent {@link StackOverflowError}
+     * from circular event logic.
+     * <p>
+     * Default: {@code 128}
      *
      * @param depth the maximum allowed depth
      * @return this builder
@@ -119,18 +135,18 @@ public final class EventBusBuilder<B extends Event> {
      * @return the configured {@link IEventBus} instance
      */
     public @NotNull IEventBus<B> build() {
-        EventBusConfig<B> config = new EventBusConfig<>(
-                beforeDispatch,
-                afterDispatch,
-                errorHandler,
-                maxDepth
-        );
+        EventBusConfig<B> config = new EventBusConfig<>(beforeDispatch, afterDispatch, errorHandler, global, maxDepth);
 
         EventBus<B> impl = new EventBus<>(busType, maxDepth);
-        if (!config.hasHooks()) return impl.register();
+        if (!config.hasHooks()) return register(impl);
 
         // Wrap the implementation with the hooks
-        return new HookedEventBus<>(impl, config).register();
+        return register(new HookedEventBus<>(impl, config));
+    }
+
+    private <E extends Event, T extends IEventBus<E>> T register(T bus) {
+        if (global) EventBusRegistry.getInstance().register(bus);
+        return bus;
     }
 
     /**
@@ -142,8 +158,8 @@ public final class EventBusBuilder<B extends Event> {
      * @param maxDepth the maximum recursion depth
      * @param <B> the base event type
      */
-    public record EventBusConfig<B extends Event>(@Nullable Consumer<B> before, @Nullable Consumer<B> after,
-                                                  @Nullable ErrorHandler<B> error, int maxDepth) {
+    public record EventBusConfig<B extends Event>(@Nullable BeforeDispatchHook<B> before, @Nullable AfterDispatchHook<B> after,
+                                                  @Nullable ErrorHandler<B> error, boolean global, int maxDepth) {
         public boolean hasHooks() {
             return before != null || after != null || error != null;
         }

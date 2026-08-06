@@ -1,12 +1,12 @@
 package com.github.rcubedev.example.event.impl;
 
-import java.util.function.Consumer;
-
 import com.github.rcubedev.example.event.api.Event;
 import com.github.rcubedev.example.event.api.EventBusBuilder.EventBusConfig;
 import com.github.rcubedev.example.event.api.EventProcessor;
 import com.github.rcubedev.example.event.api.Identity;
 import com.github.rcubedev.example.event.api.Priority;
+import com.github.rcubedev.example.event.api.hooks.AfterDispatchHook;
+import com.github.rcubedev.example.event.api.hooks.BeforeDispatchHook;
 import com.github.rcubedev.example.event.api.hooks.ErrorHandler;
 import com.github.rcubedev.example.event.api.spi.RecursionBypass;
 import com.github.rcubedev.example.event.api.spi.Subscription;
@@ -18,36 +18,33 @@ import org.jetbrains.annotations.NotNull;
  * A wrapper for {@link IEventBus} that applies hooks and
  * error handling around event dispatch.
  *
- * @param <B> The base event type
+ * @param <B> The base event type this bus accepts
  */
-@Deprecated
 @UnitTestIgnored
 public final class HookedEventBus<B extends Event> implements IEventBus<B> {
 
-    private final EventBus<B> delegate;
+    private final IEventBus<B> delegate;
     private final EventBusConfig<B> config;
 
-    public HookedEventBus(@NotNull EventBus<B> delegate, @NotNull EventBusConfig<B> config) {
+    public HookedEventBus(@NotNull IEventBus<B> delegate, @NotNull EventBusConfig<B> config) {
         this.delegate = delegate;
         this.config = config;
     }
 
     @Override
     public <E extends B> void post(@NotNull E event) {
-        Consumer<B> before = config.before();
-        if (before != null) before.accept(event);
+        BeforeDispatchHook<B> before = config.before();
+        if (before != null) before.beforeDispatch(event);
 
         try {
             delegate.post(event);
         } catch (Throwable t) {
             ErrorHandler<B> errorHandler = config.error();
             if (errorHandler != null) errorHandler.handle(event, t);
-            else {
-                throw t;
-            }
+            else throw t;
         } finally {
-            Consumer<B> after = config.after();
-            if (after != null) after.accept(event);
+            AfterDispatchHook<B> after = config.after();
+            if (after != null) after.afterDispatch(event);
         }
     }
 
@@ -69,9 +66,5 @@ public final class HookedEventBus<B extends Event> implements IEventBus<B> {
     @Override
     public @NotNull Class<B> getBusType() {
         return delegate.getBusType();
-    }
-
-    public @NotNull IEventBus<B> register() {
-        return delegate.register();
     }
 }
