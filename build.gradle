@@ -1,5 +1,5 @@
-import com.github.rcubedev.example.build.PatchClasses
-import com.github.rcubedev.example.build.UnitTestIgnoredTransformer
+import com.github.rcubedev.utils.build.PatchClasses
+import com.github.rcubedev.utils.build.UnitTestIgnoredTransformer
 
 plugins {
     id 'java-library'
