@@ -7,11 +7,11 @@ import com.github.rcubedev.utils.event.api.spi.IEventBus;
 /**
  * The main event bus. Accepts any {@link Event} subtype.
  * <p>
- * Post events via {@link #BUS}:
+ * Post events via {@link #get()}:
  * <pre>
  * {@code
- * MainBus.BUS.register(new MyListener());
- * MainBus.BUS.post(new PlayerLoginEvent());
+ * MainBus.get().register(new MyListener());
+ * MainBus.get().post(new PlayerLoginEvent());
  * }
  * </pre>
  * For a scoped bus that only accepts specific event subtypes, create via {@link EventBusBuilder}:
@@ -28,12 +28,19 @@ import com.github.rcubedev.utils.event.api.spi.IEventBus;
  */
 public final class MainBus {
 
+    private MainBus() {}
+
     /**
      * Singleton instance of the main event bus.
      */
-    public static final IEventBus<Event> BUS = EventBusBuilder.create(Event.class);
+    public IEventBus<Event> get() {
+        return Holder.BUS;
+    }
 
-    private MainBus() {}
+    private static class Holder {
+        private static final IEventBus<Event> BUS = EventBusBuilder.create(Event.class);
+        private Holder() {}
+    }
 
 //    static {
 //        BUS = new EventBus<>(Event.class, 128);

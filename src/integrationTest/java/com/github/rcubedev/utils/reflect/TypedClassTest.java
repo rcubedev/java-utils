@@ -10,16 +10,16 @@ import static org.junit.jupiter.api.Assertions.*;
 public class TypedClassTest {
 
     @Test
-    @DisplayName("Basic Inheritance: String should be assignable to CharSequence")
     void testBasicInheritance() {
+        // String should be assignable to CharSequence
         TypedClass<String> stringType = new TypedClass<>() {};
         assertTrue(stringType.isAssignableTo(CharSequence.class));
         assertFalse(stringType.isAssignableTo(Integer.class));
     }
 
     @Test
-    @DisplayName("Invariance: List<String> is NOT assignable to List<Object>")
     void testInvariance() {
+        // List<String> is NOT assignable to List<Object>
         TypedClass<List<String>> listString = new TypedClass<>() {};
         TypedClass<List<Object>> listObject = new TypedClass<>() {};
 
@@ -29,8 +29,8 @@ public class TypedClassTest {
     }
 
     @Test
-    @DisplayName("Covariance with Wildcards: List<String> is assignable to List<? extends CharSequence>")
     void testWildcardUpperBounds() {
+        // Covariance w/ wildcards: List<String> assignable to List<? extends CharSequence>
         TypedClass<List<String>> source = new TypedClass<>() {};
         TypedClass<List<? extends CharSequence>> target = new TypedClass<>() {};
 
@@ -39,7 +39,6 @@ public class TypedClassTest {
     }
 
     @Test
-    @DisplayName("Lower Bounds: Object is assignable to ? super String")
     void testWildcardLowerBounds() {
         TypedClass<List<? super String>> target = new TypedClass<>() {};
 
@@ -58,8 +57,8 @@ public class TypedClassTest {
     }
 
     @Test
-    @DisplayName("Recursive Generics: Map<String, List<String>> check")
     void testRecursiveGenerics() {
+        // Map<String, List<String>> check
         TypedClass<Map<String, List<String>>> source = new TypedClass<>() {};
         TypedClass<Map<String, List<? extends CharSequence>>> target = new TypedClass<>() {};
         TypedClass<Map<String, List<Integer>>> invalidTarget = new TypedClass<>() {};
@@ -75,24 +74,16 @@ public class TypedClassTest {
     }
 
     @Test
-    @DisplayName("Primitives: int.class should be handled via ofPrimitive")
     void testPrimitives() {
         TypedClass<Integer> intPrim = TypedClass.ofPrimitive(int.class);
 
         assertEquals(int.class, intPrim.getTypedClass());
-        // Note: isAssignableTo(Integer.class) might depend on your JlsReflectionHelper's
-        // boxing logic, but the raw class check should work:
         assertTrue(intPrim.isAssignableTo(int.class));
     }
 
     @Test
-    @DisplayName("Type Variables: Check bounds satisfaction")
     void testTypeVariables() {
-        // Mocking a TypeVariable bound is hard without a real class,
-        // but we can test if String satisfies a bound of Comparable
         TypedClass<String> source = new TypedClass<>() {};
-
-        // This simulates a constructor like <T extends Comparable<T>>
         assertTrue(source.isAssignableTo(Comparable.class));
     }
 }

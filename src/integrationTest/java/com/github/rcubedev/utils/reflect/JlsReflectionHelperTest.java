@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class JlsReflectionHelperTest {
 
-    // --- Test Subject Classes ---
     public static class OverloadTarget {
         public final String result;
         public OverloadTarget(String s) { this.result = "String"; }
@@ -27,7 +26,6 @@ public class JlsReflectionHelperTest {
     }
 
     @Test
-    @DisplayName("Phase 1: Widening & Identity using Builder")
     void testPhase1WithBuilder() {
         // String is more specific than CharSequence
         Argument<String> arg = Argument.Builder.of("test", new TypedClass<String>() {});
@@ -37,7 +35,6 @@ public class JlsReflectionHelperTest {
     }
 
     @Test
-    @DisplayName("Phase 2: Boxing using Primitive Builder")
     void testPhase2WithPrimitiveBuilder() {
         // Use the specialized primitive builder
         Argument<Integer> arg = Argument.Builder.of(10); // returns Argument<Integer> with int.class
@@ -47,7 +44,6 @@ public class JlsReflectionHelperTest {
     }
 
     @Test
-    @DisplayName("Phase 3: VarArgs using VarArgs Builder")
     void testPhase3WithVarArgsBuilder() {
         // Testing primitive varargs: int...
         Argument<int[]> arg = Argument.Builder.VarArgs.of(1, 2, 3, 4, 5);
@@ -57,7 +53,6 @@ public class JlsReflectionHelperTest {
     }
 
     @Test
-    @DisplayName("Generics: List<String> to List<? extends CharSequence>")
     void testGenericsWithBuilder() {
         record GenericReceiver(List<? extends CharSequence> items) {}
 
@@ -73,8 +68,8 @@ public class JlsReflectionHelperTest {
     }
 
     @Test
-    @DisplayName("Generics: List<Collection<String>> to List<? extends Collection<? extends CharSequence>")
     void testGenericsWithBuilder2() {
+        // List<Collection<String>> to List<? extends Collection<? extends CharSequence>
         record GenericReceiver(List<? extends Collection<? extends CharSequence>> items) {}
 
         Argument<List<Collection<String>>> arg = Argument.Builder.of(
@@ -90,8 +85,8 @@ public class JlsReflectionHelperTest {
     }
 
     @Test
-    @DisplayName("Generics: List<String> to List<? super Class<?>>")
     void testGenericsWithBuilder3() {
+        // List<String> to List<? super Class<?>>
         record GenericReceiver(List<? super Class<?>> items) {}
 
         Argument<List<Object>> arg = Argument.Builder.of(
@@ -104,8 +99,8 @@ public class JlsReflectionHelperTest {
     }
 
     @Test
-    @DisplayName("Generics: List<Collection<String>> to List<? super List<Object>")
     void testBadGenericsWithBuilder() {
+        // List<Collection<String>> to List<? super List<Object>
         record GenericReceiver(List<? super List<Object>> items) {}
 
         Argument<List<Collection<String>>> arg = Argument.Builder.of(
@@ -113,9 +108,9 @@ public class JlsReflectionHelperTest {
                 new TypedClass<>() {}
         );
         // List<Collection<String>> aaa = List.of(List.of("A", "B"));
-        // new GenericReceiver(aaa); // <-- this wouldn't work in java but does work in my reflection helper for some reason.
+        // new GenericReceiver(aaa); // <-- fixme this wouldn't work in java but does work in reflection helper.
 
-        GenericReceiver receiver = JlsReflectionHelper.getInstance(GenericReceiver.class, MethodHandles.lookup()).instantiate(arg); // this should throw but doesn't.
+        GenericReceiver receiver = JlsReflectionHelper.getInstance(GenericReceiver.class, MethodHandles.lookup()).instantiate(arg); // fixme this should throw but doesn't.
         // assertNotNull(receiver);
         // assertEquals(1, receiver.items.size(), "Items: " +  receiver.items);
         // // assertNotNull(receiver.items.getFirst(), "First item is null");
@@ -123,7 +118,6 @@ public class JlsReflectionHelperTest {
     }
 
     @Test
-    @DisplayName("Varargs Object: String... using Separate Arguments")
     void testObjectVarArgs() {
         Argument<String> arg1 = Argument.Builder.of("one", new TypedClass<>(){});
         Argument<String> arg2 = Argument.Builder.of("two", new TypedClass<>(){});

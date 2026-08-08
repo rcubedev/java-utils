@@ -5,9 +5,6 @@ import com.github.rcubedev.utils.event.api.EventBusRegistry;
 import com.github.rcubedev.utils.event.api.spi.IEventBus;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Global registry of all {@link IEventBus} instances.
- */
 public final class EventBusRegistryImpl implements EventBusRegistry {
 
     // Volatile array as writes are rare (bus registration at startup only),
@@ -17,9 +14,6 @@ public final class EventBusRegistryImpl implements EventBusRegistry {
 
     EventBusRegistryImpl() {}
 
-    /**
-     * Register a bus.
-     */
     public <E extends Event> void register(@NotNull IEventBus<E> bus) {
         synchronized (writeLock) {
             IEventBus<?>[] current = buses;
@@ -30,15 +24,6 @@ public final class EventBusRegistryImpl implements EventBusRegistry {
         }
     }
 
-    /**
-     * Dispatch an event to all registered buses.
-     * Each bus checks at runtime whether the event is an instance of its base type.
-     * <p>
-     * Called automatically by {@link Event#dispatch()}, but also usable directly
-     * as the public API for firing all buses at once.
-     *
-     * @param event The event to dispatch
-     */
     public <E extends Event> void dispatch(@NotNull E event) {
         IEventBus<?>[] snapshot = buses; // single volatile read, no lock needed
         for (IEventBus<?> bus : snapshot) {

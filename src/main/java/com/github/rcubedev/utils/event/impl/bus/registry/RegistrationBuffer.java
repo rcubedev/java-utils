@@ -13,13 +13,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class RegistrationBuffer<B extends Event> implements Registrar<B> {
-    private final List<BatchedSubscription> subscriptions;
+
+    private final Class<B> baseType;
     private final SubscriptionFactory<B> factory;
+    private final List<BatchedSubscription> subscriptions;
     private final List<StagedEntry<B, ?>> stagedEntries = new ArrayList<>();
 
-    public RegistrationBuffer(SubscriptionFactory<B> factory, List<BatchedSubscription> subscriptions) {
+    public RegistrationBuffer(Class<B> baseType, SubscriptionFactory<B> factory, List<BatchedSubscription> subscriptions) {
+        this.baseType = baseType;
         this.factory = factory;
         this.subscriptions = subscriptions;
+    }
+
+    @Override
+    public @NotNull Class<B> baseType() {
+        return this.baseType;
     }
 
     @Override
@@ -43,6 +51,6 @@ public final class RegistrationBuffer<B extends Event> implements Registrar<B> {
 
     @FunctionalInterface
     public interface Factory<B extends Event> {
-        RegistrationBuffer<B> create(SubscriptionFactory<B> factory, List<BatchedSubscription> subscriptions);
+        RegistrationBuffer<B> create(Class<B> baseType, SubscriptionFactory<B> factory, List<BatchedSubscription> subscriptions);
     }
 }

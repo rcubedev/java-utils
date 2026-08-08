@@ -30,7 +30,7 @@ public final class RuntimeLinkageEngine implements LinkerEngine {
             return primary.linkStrong(context);
         } catch (ModuleAccessException | MemberAccessException | StructuralLinkageException e) {
             try {
-                System.out.println("FALLING BACK!!! THIS IS NOT NICE");
+                // todo: add logging
                 return fallback.linkStrong(context);
             } catch (ModuleAccessException | MemberAccessException | StructuralLinkageException ex) {
                 e.addSuppressed(ex);
@@ -45,6 +45,7 @@ public final class RuntimeLinkageEngine implements LinkerEngine {
             return primary.linkWeak(context);
         } catch (ModuleAccessException | MemberAccessException | StructuralLinkageException e) {
             try {
+                // todo: add logging
                 return fallback.linkWeak(context);
             } catch (ModuleAccessException | MemberAccessException | StructuralLinkageException ex) {
                 e.addSuppressed(ex);

@@ -1,6 +1,7 @@
 package com.github.rcubedev.utils.event.api.spi;
 
 import com.github.rcubedev.utils.event.api.*;
+import com.github.rcubedev.utils.event.api.annotation.SubscribeEvent;
 import com.github.rcubedev.utils.event.api.exceptions.EventStackOverflowException;
 import org.jetbrains.annotations.NotNull;
 

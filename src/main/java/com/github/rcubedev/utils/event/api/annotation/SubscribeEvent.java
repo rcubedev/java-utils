@@ -1,4 +1,7 @@
-package com.github.rcubedev.utils.event.api;
+package com.github.rcubedev.utils.event.api.annotation;
+
+import com.github.rcubedev.utils.event.api.Event;
+import com.github.rcubedev.utils.event.api.Priority;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -7,6 +10,7 @@ import java.lang.annotation.Target;
 
 /**
  * Marks a method as an event listener.
+ * <p>
  * The method must be public, take exactly one {@link Event} subtype parameter, and return void.
  * <pre>
  * {@code
@@ -17,7 +21,7 @@ import java.lang.annotation.Target;
  *     }
  * }
  *
- * MainEventBus.INSTANCE.register(new MyListener());
+ * MainBus.get().register(new MyListener());
  * }
  * </pre>
  */
