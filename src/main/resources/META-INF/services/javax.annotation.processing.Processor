@@ -1,1 +1,1 @@
-com.github.rcubedev.utils.event.impl.fixme.SubscribeProcessor
+com.github.rcubedev.utils.event.impl.apt.SubscribeProcessor

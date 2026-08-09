@@ -13,7 +13,7 @@ import java.util.List;
  * @param <T> the subscriber target class type
  * @param <B> the base event type supported by this factory
  */
-@ApiStatus.NonExtendable
+@ApiStatus.Internal
 public interface SubscriberInvokerFactory<T, B extends Event> {
 
     /**
@@ -28,5 +28,5 @@ public interface SubscriberInvokerFactory<T, B extends Event> {
      *
      * @return list of event processor invokers
      */
-    List<EventSubscriberInvoker<T, ? extends B>> invokers();
+    List<? extends EventSubscriberInvoker<T, ? extends B>> invokers();
 }

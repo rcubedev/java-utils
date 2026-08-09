@@ -4,8 +4,10 @@ import com.github.rcubedev.utils.event.api.exceptions.EventStackOverflowExceptio
 import com.github.rcubedev.utils.event.api.spi.RecursionBypass;
 import org.jetbrains.annotations.NotNull;
 
-public class RecursionGuard {
-    // todo(jdk25): scoped values
+// todo maybe move this out of events and throw a diff error that the dispatcher can catch and rethrow as
+//  EventStackOverflowException
+public final class RecursionGuard {
+    // todo(jdk25): scoped values. accept a runnable
     private static final ThreadLocal<int[]> depth = ThreadLocal.withInitial(() -> new int[]{0});
     private final int maxStackDepth;
 

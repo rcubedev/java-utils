@@ -48,7 +48,7 @@ public class RegistrySnapshot<B extends Event> {
     }
 
     public @NotNull @Unmodifiable Map<Class<? extends B>, @Unmodifiable Map<Priority, EventSinkSnapshot<? extends B>>> getHandlers() {
-        return handlers;
+        return this.handlers;
     }
 
     @FunctionalInterface

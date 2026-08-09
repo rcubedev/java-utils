@@ -1,5 +1,5 @@
 import com.github.rcubedev.utils.event.generated.SubscriberInvokerFactory;
-import com.github.rcubedev.utils.event.impl.fixme.SubscribeProcessor;
+import com.github.rcubedev.utils.event.impl.apt.SubscribeProcessor;
 
 import javax.annotation.processing.Processor;
 

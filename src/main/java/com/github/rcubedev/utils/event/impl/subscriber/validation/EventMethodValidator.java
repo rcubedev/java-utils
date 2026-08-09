@@ -51,9 +51,7 @@ public final class EventMethodValidator<E extends Event> implements MethodValida
     // decoupled so other has method in cause
     @Override
     public Class<? extends E> validateParameter(Class<?> paramType) {
-        Method method = null;
         if (!Event.class.isAssignableFrom(paramType)) {
-            String prefix = "Class " + paramType.getName();
             throw new IllegalArgumentException(
                     "Method has @SubscribeEvent but parameter " + paramType.getName() + " is not an Event subtype: " + paramType);
         }

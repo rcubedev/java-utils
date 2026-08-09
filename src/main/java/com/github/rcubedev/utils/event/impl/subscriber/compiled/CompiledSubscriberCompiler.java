@@ -8,6 +8,8 @@ import com.github.rcubedev.utils.event.api.spi.Registrar;
 import com.github.rcubedev.utils.event.api.spi.Subscription;
 import com.github.rcubedev.utils.event.api.subscriber.validation.ClassValidator;
 import com.github.rcubedev.utils.event.generated.EventSubscriberInvoker;
+import com.github.rcubedev.utils.event.generated.InstanceSubscriberInvoker;
+import com.github.rcubedev.utils.event.generated.StaticSubscriberInvoker;
 import com.github.rcubedev.utils.event.generated.SubscriberInvokerFactory;
 import com.github.rcubedev.utils.test.UnitTestIgnored;
 
@@ -38,8 +40,7 @@ public class CompiledSubscriberCompiler {
         return bindInstance0(target, identity, registrar);
     }
 
-    private <T, B extends Event, E extends B> List<Subscription> bindInstance0(T target, Identity identity, Registrar<B> registrar) {
-
+    private <T, B extends Event> List<Subscription> bindInstance0(T target, Identity identity, Registrar<B> registrar) {
         @SuppressWarnings("unchecked")
         Class<T> targetClass = (Class<T>) target.getClass();
 
@@ -51,22 +52,40 @@ public class CompiledSubscriberCompiler {
         if (factory == null) return List.of();
 
         List<Subscription> subscriptions = new ArrayList<>(factory.invokers().size());
-        for (EventSubscriberInvoker<T, ?> invoker : factory.invokers()) {
-            subscriptions.add(registerInvoker(target, invoker, registrar));
+        for (EventSubscriberInvoker<T, ?> invokerObj : factory.invokers()) {
+            if (!(invokerObj instanceof InstanceSubscriberInvoker<T, ?> invoker)) return List.of(); // mismatch
+            subscriptions.add(registerInstanceInvoker(target, invoker, registrar));
         }
         return subscriptions;
     }
 
     public <B extends Event> List<Subscription> bindStatic(Class<?> clazz, Identity identity, Registrar<B> registrar) {
-        return List.of(); //todo
+        return bindStatic0(clazz, identity, registrar);
+    }
+
+    public <T, B extends Event> List<Subscription> bindStatic0(Class<T> clazz, Identity identity, Registrar<B> registrar) {
+
+        ClassValidator validator = registrar.classValidator();
+        validator.validate(clazz);
+
+        @SuppressWarnings("unchecked")
+        SubscriberInvokerFactory<T, ?> factory = (SubscriberInvokerFactory<T, ?>) this.factories.get(clazz);
+        if (factory == null) return List.of();
+
+        List<Subscription> subscriptions = new ArrayList<>();
+        for (EventSubscriberInvoker<T, ?> invokerObj : factory.invokers()) {
+            if (!(invokerObj instanceof StaticSubscriberInvoker<T, ?> invoker)) return List.of(); // mismatch
+            subscriptions.add(registerStaticInvoker(invoker, registrar));
+        }
+        return subscriptions;
     }
 
     public <B extends Event> List<Subscription> bindMethod(Method method, Identity identity, Registrar<B> registrar) {
         return List.of(); //todo
     }
 
-    private <T, B extends Event, E extends B> Subscription registerInvoker(T listener, EventSubscriberInvoker<T, ?> invoker,
-                                                                           Registrar<B> registrar) {
+    private <T, B extends Event, E extends B> Subscription registerInstanceInvoker(T listener, InstanceSubscriberInvoker<T, ?> invoker,
+                                                                                   Registrar<B> registrar) {
 
         Class<? extends B> validatedType = registrar.methodValidator().validateParameter(invoker.eventType());
 
@@ -74,12 +93,24 @@ public class CompiledSubscriberCompiler {
         Class<E> eventType = (Class<E>) validatedType;
 
         @SuppressWarnings("unchecked")
-        EventSubscriberInvoker<T, E> typedInvoker = (EventSubscriberInvoker<T, E>) invoker;
+        InstanceSubscriberInvoker<T, E> typedInvoker = (InstanceSubscriberInvoker<T, E>) invoker;
 
-        EventProcessor<E> processor = invoker.ignoreCancelled() ? event -> {
-            if (event instanceof Cancellable c && c.isCancelled()) return;
-            typedInvoker.invoke(listener, event);
-        } : event -> typedInvoker.invoke(listener, event);
+        EventProcessor<E> processor = typedInvoker.create(listener);
+        return registrar.register(eventType, typedInvoker.priority(), processor);
+    }
+
+    private <T, B extends Event, E extends B> Subscription registerStaticInvoker(StaticSubscriberInvoker<T, ?> invoker,
+                                                                                 Registrar<B> registrar) {
+
+        Class<? extends B> validatedType = registrar.methodValidator().validateParameter(invoker.eventType());
+
+        @SuppressWarnings("unchecked")
+        Class<E> eventType = (Class<E>) validatedType;
+
+        @SuppressWarnings("unchecked")
+        StaticSubscriberInvoker<T, E> typedInvoker = (StaticSubscriberInvoker<T, E>) invoker;
+
+        EventProcessor<E> processor = typedInvoker.create();
         return registrar.register(eventType, typedInvoker.priority(), processor);
     }
 
