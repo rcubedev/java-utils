@@ -10,12 +10,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class ArgumentTest {
 
     @Nested
-    @DisplayName("Reference Type Arguments")
+    @DisplayName("Reference Type Args")
     class ReferenceTypes {
         @Test
         void testSuperTypeConstraints() {
-            // Testing that Argument<T> accepts TypedClass<? super T>
-            // This is crucial for JLS §15.12 polymorphism
+            // testing that Argument<T> accepts TypedClass<? super T>
             TypedClass<CharSequence> charSeqType = new TypedClass<>() {};
             Argument<String> arg = Argument.Builder.of("Hello", charSeqType);
 
@@ -34,7 +33,7 @@ class ArgumentTest {
     }
 
     @Nested
-    @DisplayName("Primitive & Varargs Arguments")
+    @DisplayName("Primitive & Varargs Args")
     class PrimitiveAndVarargs {
         @Test
         void testPrimitiveIntBuilder() {
@@ -47,7 +46,6 @@ class ArgumentTest {
 
         @Test
         void testPrimitiveArrayVarargs() {
-            // Tests Argument.Builder.VarArgs.of(int...)
             Argument<int[]> arg = Argument.Builder.VarArgs.of(1, 2, 3);
 
             assertArrayEquals(new int[]{1, 2, 3}, arg.get());
@@ -57,7 +55,6 @@ class ArgumentTest {
 
         @Test
         void testObjectArrayVarargs() {
-            // Tests String... varargs
             TypedClass<String[]> type = new TypedClass<>() {};
             Argument<String[]> arg = Argument.Builder.VarArgs.of(type, "A", "B");
 
@@ -69,8 +66,6 @@ class ArgumentTest {
     @Nested
     @DisplayName("High-Fidelity Type Matching (isAssignableTo)")
     class TypeMatching {
-
-
 
         @Test
         void testGenericInvariance() {
@@ -95,8 +90,8 @@ class ArgumentTest {
             TypedClass<List<Object>> source = new TypedClass<>() {};
             TypedClass<List<? super String>> target = new TypedClass<>() {};
 
-            List<Object> a = new ArrayList<>();
-            List<? super String> b = new ArrayList<>();
+            //List<Object> a = new ArrayList<>();
+            //List<? super String> b = new ArrayList<>();
             assertTrue(source.isAssignableTo(target));
             assertFalse(target.isAssignableTo(source));
         }
@@ -112,7 +107,6 @@ class ArgumentTest {
 
         @Test
         void testObjectVarargsCanContainNull() {
-            // Attempting to put null into non-primitive var args should succeed
             assertDoesNotThrow(() -> Argument.Builder.VarArgs.of(new TypedClass<>(){}, 1, null, 3));
         }
 

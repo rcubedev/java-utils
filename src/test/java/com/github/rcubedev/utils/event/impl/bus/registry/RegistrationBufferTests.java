@@ -32,7 +32,12 @@ class RegistrationBufferTests {
     @BeforeEach
     void setUp() {
         subscriptionsList = new ArrayList<>();
-        registrationBuffer = new RegistrationBuffer<>(mockFactory, subscriptionsList);
+        registrationBuffer = new RegistrationBuffer<>(TestEvent.class, mockFactory, subscriptionsList);
+    }
+
+    @Test
+    void baseType_ShouldReturnConfiguredBaseTypeClass() {
+        assertEquals(TestEvent.class, registrationBuffer.baseType());
     }
 
     @Test
@@ -40,7 +45,7 @@ class RegistrationBufferTests {
         Class<TestEvent> type = TestEvent.class;
         Priority priority = Priority.HIGH;
         
-        doReturn(mockBatchedSubscription).when(mockFactory).createBatched(type, priority, mockProcessor);
+        when(mockFactory.createBatched(type, priority, mockProcessor)).thenReturn(mockBatchedSubscription);
 
         Subscription returnedSubscription = registrationBuffer.register(type, priority, mockProcessor);
 
@@ -58,7 +63,7 @@ class RegistrationBufferTests {
         Class<TestEvent> type = TestEvent.class;
         Priority priority = Priority.MONITOR;
         
-        doReturn(mockBatchedSubscription).when(mockFactory).createBatched(type, priority, mockProcessor);
+        when(mockFactory.createBatched(type, priority, mockProcessor)).thenReturn(mockBatchedSubscription);
         
         registrationBuffer.register(type, priority, mockProcessor);
 

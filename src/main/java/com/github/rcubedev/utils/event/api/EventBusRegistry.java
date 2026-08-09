@@ -32,6 +32,7 @@ public interface EventBusRegistry {
 
     /**
      * Dispatch an event to all registered buses.
+     * <p>
      * Each bus checks at runtime whether the event is an instance of its base type.
      * <p>
      * Called automatically by {@link Event#dispatch()}, but also usable directly

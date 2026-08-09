@@ -64,7 +64,7 @@ class FamilyBuilderTest {
         when(mockResolver.hierarchyDepth(TestEvent.SubEvent.class)).thenReturn(2);
         when(mockResolver.hierarchyDepth(GrandchildEvent.class)).thenReturn(3);
 
-        doReturn(null).when(mockResolver).getRegisteredParentAsExtendsBus(TestEvent.class);
+        when(mockResolver.getRegisteredParentAsExtendsBus(TestEvent.class)).thenReturn(null);
         doReturn(TestEvent.class).when(mockResolver).getRegisteredParentAsExtendsBus(TestEvent.SubEvent.class);
         doReturn(TestEvent.SubEvent.class).when(mockResolver).getRegisteredParentAsExtendsBus(GrandchildEvent.class);
 
@@ -90,7 +90,7 @@ class FamilyBuilderTest {
         when(mockResolver.hierarchyDepth(TestEvent.class)).thenReturn(1);
         when(mockResolver.hierarchyDepth(GrandchildEvent.class)).thenReturn(3);
 
-        doReturn(null).when(mockResolver).getRegisteredParentAsExtendsBus(TestEvent.class);
+        when(mockResolver.getRegisteredParentAsExtendsBus(TestEvent.class)).thenReturn(null);
         doReturn(TestEvent.class).when(mockResolver).getRegisteredParentAsExtendsBus(GrandchildEvent.class);
 
         List<List<Class<? extends Event>>> lineages = builder.buildFamilies();
@@ -114,8 +114,8 @@ class FamilyBuilderTest {
         when(mockResolver.hierarchyDepth(SeparateEvent.class)).thenReturn(2);
         when(mockResolver.hierarchyDepth(TestEvent.SubEvent.class)).thenReturn(2);
 
-        doReturn(null).when(mockResolver).getRegisteredParentAsExtendsBus(SeparateEvent.class);
-        doReturn(null).when(mockResolver).getRegisteredParentAsExtendsBus(TestEvent.SubEvent.class);
+        when(mockResolver.getRegisteredParentAsExtendsBus(SeparateEvent.class)).thenReturn(null);
+        when(mockResolver.getRegisteredParentAsExtendsBus(TestEvent.SubEvent.class)).thenReturn(null);
 
         List<List<Class<? extends Event>>> lineages = builder.buildFamilies();
 

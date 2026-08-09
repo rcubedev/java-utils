@@ -72,7 +72,7 @@ class DispatcherTests {
 
             lockField.set(dispatcher, lockSpy);
 
-            doReturn(false).when(lockSpy).validate(anyLong());
+            when(lockSpy.validate(anyLong())).thenReturn(false);
             when(guard.increment()).thenReturn(7);
 
             TestEvent event = new TestEvent();

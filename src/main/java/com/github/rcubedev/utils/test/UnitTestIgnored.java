@@ -31,4 +31,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.PACKAGE, ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.FIELD,
         ElementType.PARAMETER})
 public @interface UnitTestIgnored {
+    // todo add reason
 }

@@ -27,7 +27,7 @@ public abstract class Event {
      * that are compatible with this event's type.
      * <p>
      * This is a convenience method for global broadcasting.<br>
-     * For targeted dispatch, use {@link com.github.rcubedev.utils.event.api.spi.IEventBus#post(Event) IEventBus#post(Event)}
+     * For targeted dispatch, use {@link com.github.rcubedev.utils.event.api.spi.IEventBus#post(Event)}
      * on a specific bus instance.
      */
     public final void dispatch() {

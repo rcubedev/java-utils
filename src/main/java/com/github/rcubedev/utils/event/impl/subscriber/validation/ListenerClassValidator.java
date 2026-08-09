@@ -1,16 +1,23 @@
-package com.github.rcubedev.utils.event.impl.subscriber;
+package com.github.rcubedev.utils.event.impl.subscriber.validation;
 
-import com.github.rcubedev.utils.event.api.SubscribeEvent;
+import com.github.rcubedev.utils.event.api.annotation.SubscribeEvent;
+import com.github.rcubedev.utils.event.api.subscriber.validation.ClassValidator;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
 import java.util.stream.Stream;
 
-public class ListenerClassValidator {
+public class ListenerClassValidator implements ClassValidator {
 
+    @Override
     public void validate(@NotNull Class<?> clazz) throws IllegalArgumentException {
         checkSupertypes(clazz, clazz);
     }
+
+    /*@Override
+    public boolean isCompatible(@NotNull Class<?> clazz) {
+        return !clazz.isInterface() && !clazz.isPrimitive() && !clazz.isArray() && !clazz.isAnnotation();
+    }*/
 
     private static void checkSupertypes(@NotNull Class<?> registeredType, Class<?> type) throws IllegalArgumentException {
         if (type == null || type == Object.class) return;

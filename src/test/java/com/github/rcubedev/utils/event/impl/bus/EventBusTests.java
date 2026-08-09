@@ -107,7 +107,7 @@ class EventBusTests {
             RegistrationBuffer<TestEvent> mockBuffer = mock(RegistrationBuffer.class);
 
             when(handlerRegistry.snapshot()).thenReturn(mockSnapshot);
-            when(sessionFactory.create(any(), any())).thenReturn(mockBuffer);
+            when(sessionFactory.create(any(), any(), any())).thenReturn(mockBuffer);
             when(masterSubFactory.create(any(), any())).thenReturn(mockMaster);
 
             Subscription master = bus.register(target, identity);
@@ -118,7 +118,7 @@ class EventBusTests {
 
             RegistrySnapshot<TestEvent> result = captor.getValue().get();
 
-            verify(sessionFactory).create(eq(factory), any());
+            verify(sessionFactory).create(eq(TestEvent.class), eq(factory), any());
             verify(mockBuffer).flush(handlerRegistry);
             verify(compiler).build(target, identity, mockBuffer);
             verify(handlerRegistry).snapshot();
@@ -132,7 +132,7 @@ class EventBusTests {
 
             @SuppressWarnings("unchecked")
             RegistrationBuffer<TestEvent> mockBuffer = mock(RegistrationBuffer.class);
-            when(sessionFactory.create(any(), any())).thenReturn(mockBuffer);
+            when(sessionFactory.create(any(), any(), any())).thenReturn(mockBuffer);
             when(masterSubFactory.create(any(), any())).thenReturn(mock(MasterSubscription.class));
 
             doAnswer(invocation -> {
@@ -143,7 +143,7 @@ class EventBusTests {
 
             bus.register(target, identity);
 
-            verify(sessionFactory).create(eq(factory), any());
+            verify(sessionFactory).create(eq(TestEvent.class), eq(factory), any());
             verify(mockBuffer).flush(handlerRegistry);
             verify(compiler).build(target, identity, mockBuffer);
         }
@@ -158,7 +158,7 @@ class EventBusTests {
             @SuppressWarnings("unchecked")
             RegistrySnapshot<TestEvent> mockSnapshot = mock(RegistrySnapshot.class);
 
-            when(sessionFactory.create(any(), any())).thenReturn(mockBuffer);
+            when(sessionFactory.create(any(), any(), any())).thenReturn(mockBuffer);
             when(masterSubFactory.create(any(), any())).thenReturn(mockMaster);
             when(handlerRegistry.snapshot()).thenReturn(mockSnapshot);
 

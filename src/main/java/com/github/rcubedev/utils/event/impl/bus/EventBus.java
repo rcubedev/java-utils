@@ -37,7 +37,7 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     @UnitTestIgnored
     private EventBus(Class<B> busType, HandlerRegistry<B> registry, Dispatcher<B> dispatcher) {
         this(busType, registry, dispatcher, new SubscriptionFactory<>(registry, dispatcher),
-                new EventSubscriberCompiler<>(busType), RegistrationBuffer::new, MasterSubscription::new);
+                new EventSubscriberCompiler<>(), RegistrationBuffer::new, MasterSubscription::new);
     }
 
     EventBus(Class<B> busType, HandlerRegistry<B> registry, Dispatcher<B> dispatcher, SubscriptionFactory<B> factory,
@@ -81,7 +81,7 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     @Override
     public @NotNull Subscription register(Object target, Identity identity) {
         List<BatchedSubscription> subscriptions = new ArrayList<>();
-        RegistrationBuffer<B> registrar = this.sessionFactory.create(this.factory, subscriptions);
+        RegistrationBuffer<B> registrar = this.sessionFactory.create(this.busType, this.factory, subscriptions);
         this.compiler.build(target, identity, registrar);
 
         this.dispatcher.update(() -> {

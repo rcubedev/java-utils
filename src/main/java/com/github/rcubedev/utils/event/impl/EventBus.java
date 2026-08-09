@@ -1,6 +1,7 @@
 package com.github.rcubedev.utils.event.impl;
 
 import com.github.rcubedev.utils.event.api.*;
+import com.github.rcubedev.utils.event.api.annotation.SubscribeEvent;
 import com.github.rcubedev.utils.event.api.exceptions.EventStackOverflowException;
 import com.github.rcubedev.utils.event.api.spi.*;
 import com.github.rcubedev.utils.event.impl.bus.handler.ArrayBackedEventSink;
@@ -196,6 +197,11 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
         @Deprecated
         class RegistrarImpl implements Registrar<B> {
             @Override
+            public @NotNull Class<B> baseType() {
+                return EventBus.this.busType;
+            }
+
+            @Override
             public <E extends B> @NotNull Subscription register(Class<E> type, Priority priority, EventProcessor<E> processor) {
                 BatchedSubscription sub = createBatchedSubscription(type, priority, processor);
                 // still use registerDirect because we are inside a batch
@@ -207,7 +213,7 @@ public final class EventBus<B extends Event> implements IEventBus<B>, TestableEv
         Registrar<B> register = new RegistrarImpl();
 
         synchronized (rebuildLock) {
-            new EventSubscriberCompiler<>(busType).build(target, identity, register);
+            new EventSubscriberCompiler<B>().build(target, identity, register);
             rebuild();
         }
         return new MasterSubscription(subscriptions.toArray(BatchedSubscription[]::new), () -> {

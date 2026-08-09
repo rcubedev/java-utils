@@ -1,6 +1,7 @@
-package com.github.rcubedev.utils.event.impl.subscriber;
+package com.github.rcubedev.utils.event.impl.subscriber.validation;
 
 import com.github.rcubedev.utils.event.api.Event;
+import com.github.rcubedev.utils.event.api.subscriber.validation.MethodValidator;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -13,6 +14,7 @@ public final class EventMethodValidator<E extends Event> implements MethodValida
         this.eventType = eventType;
     }
 
+    @Override
     public Class<? extends E> validate(Method method) throws IllegalArgumentException {
         if (!Modifier.isPublic(method.getModifiers())) {
             throw new IllegalArgumentException("@SubscribeEvent method must be public: " + method);
@@ -31,7 +33,7 @@ public final class EventMethodValidator<E extends Event> implements MethodValida
                     "Method " + method + " has @SubscribeEvent but parameter is not an Event subtype: " + paramType);
         }
 
-        // todo: this wasn't here before it just no-opd
+        // this wasn't here before it just no-opd
         if (!eventType.isAssignableFrom(paramType)) {
             throw new IllegalArgumentException(
                     "Method " + method + "'s parameter is incompatible with type: " + eventType.getName());
@@ -39,6 +41,26 @@ public final class EventMethodValidator<E extends Event> implements MethodValida
 
         if (method.getReturnType() != void.class) {
             throw new IllegalArgumentException("@SubscribeEvent method must return void: " + method); // fixme what if i add something where event can decide w/o using event.setsomething & instead return type
+        }
+
+        @SuppressWarnings("unchecked") // safe as checked if paramType is a subtype of eventType
+        Class<? extends E> eventType = (Class<? extends E>) paramType;
+        return eventType;
+    }
+
+    // decoupled so other has method in cause
+    @Override
+    public Class<? extends E> validateParameter(Class<?> paramType) {
+        Method method = null;
+        if (!Event.class.isAssignableFrom(paramType)) {
+            String prefix = "Class " + paramType.getName();
+            throw new IllegalArgumentException(
+                    "Method has @SubscribeEvent but parameter " + paramType.getName() + " is not an Event subtype: " + paramType);
+        }
+
+        if (!eventType.isAssignableFrom(paramType)) {
+            throw new IllegalArgumentException(
+                    "Parameter " + paramType.getName() + " is incompatible with type: " + eventType.getName());
         }
 
         @SuppressWarnings("unchecked") // safe as checked if paramType is a subtype of eventType

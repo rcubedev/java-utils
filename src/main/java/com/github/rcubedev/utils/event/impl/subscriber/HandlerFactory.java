@@ -2,7 +2,7 @@ package com.github.rcubedev.utils.event.impl.subscriber;
 
 import com.github.rcubedev.utils.event.api.Event;
 import com.github.rcubedev.utils.event.api.Priority;
-import com.github.rcubedev.utils.event.api.SubscribeEvent;
+import com.github.rcubedev.utils.event.api.annotation.SubscribeEvent;
 
 /**
  * Represents a pre-compiled factory for a specific {@link SubscribeEvent @SubscribeEvent} method.
