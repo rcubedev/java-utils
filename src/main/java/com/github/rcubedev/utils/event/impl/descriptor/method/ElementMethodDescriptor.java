@@ -1,5 +1,7 @@
 package com.github.rcubedev.utils.event.impl.descriptor.method;
 
+import com.github.rcubedev.utils.event.api.descriptor.method.MethodDescriptor;
+
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;

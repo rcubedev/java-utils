@@ -1,5 +1,6 @@
 package com.github.rcubedev.utils.event.impl.descriptor.method;
 
+import com.github.rcubedev.utils.event.api.descriptor.method.MethodDescriptor;
 import com.github.rcubedev.utils.event.impl.subscriber.MethodKey;
 
 import java.lang.invoke.MethodType;

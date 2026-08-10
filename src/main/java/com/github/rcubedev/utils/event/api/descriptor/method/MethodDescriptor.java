@@ -1,4 +1,4 @@
-package com.github.rcubedev.utils.event.impl.descriptor.method;
+package com.github.rcubedev.utils.event.api.descriptor.method;
 
 import org.jetbrains.annotations.NotNull;
 

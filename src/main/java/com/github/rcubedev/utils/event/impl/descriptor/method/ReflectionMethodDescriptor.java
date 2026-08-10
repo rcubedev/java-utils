@@ -1,5 +1,7 @@
 package com.github.rcubedev.utils.event.impl.descriptor.method;
 
+import com.github.rcubedev.utils.event.api.descriptor.method.MethodDescriptor;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;

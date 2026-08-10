@@ -19,6 +19,7 @@ module com.github.rcubedev.utils {
     exports com.github.rcubedev.utils.event.api;
     exports com.github.rcubedev.utils.event.api.annotation;
     exports com.github.rcubedev.utils.event.api.buses;
+    exports com.github.rcubedev.utils.event.api.descriptor.method;
     exports com.github.rcubedev.utils.event.api.exceptions;
     exports com.github.rcubedev.utils.event.api.hooks;
     exports com.github.rcubedev.utils.event.api.spi;
