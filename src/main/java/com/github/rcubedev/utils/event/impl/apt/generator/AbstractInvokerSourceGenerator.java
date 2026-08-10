@@ -3,6 +3,7 @@ package com.github.rcubedev.utils.event.impl.apt.generator;
 import com.github.rcubedev.utils.event.api.Event;
 import com.github.rcubedev.utils.event.api.Priority;
 import com.github.rcubedev.utils.event.api.annotation.SubscribeEvent;
+import com.github.rcubedev.utils.event.api.descriptor.method.MethodDescriptor;
 import com.github.rcubedev.utils.event.generated.SubscriberInvokerFactory;
 import com.github.rcubedev.utils.event.impl.apt.scanner.DiscoveredListener;
 import com.github.rcubedev.utils.event.impl.apt.scanner.DiscoveredMethod;
@@ -11,10 +12,12 @@ import com.github.rcubedev.utils.event.impl.apt.validation.module.ModuleValidato
 import javax.annotation.processing.Generated;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public abstract class AbstractInvokerSourceGenerator extends Generator {
 
@@ -70,6 +73,26 @@ public abstract class AbstractInvokerSourceGenerator extends Generator {
             TypeMirror erasedType = processingEnv.getTypeUtils().erasure(paramType);
             String eventType = erasedType.toString();
 
+            String modifiersStr = method.getModifiers().stream()
+                    .map(Modifier::toString)
+                    .collect(Collectors.joining(" "));
+
+            String returnTypeClass = processingEnv.getTypeUtils().erasure(method.getReturnType()).toString() + ".class";
+
+            String paramClassLiterals = method.getParameters().stream()
+                    .map(p -> processingEnv.getTypeUtils().erasure(p.asType()).toString() + ".class")
+                    .collect(Collectors.joining(", "));
+
+            String paramsArg = paramClassLiterals.isEmpty() ? "" : ", " + paramClassLiterals;
+
+            String descriptorCode = "MethodDescriptor.of(\"%s\", %s.class, \"%s\", %s%s)".formatted(
+                    modifiersStr,
+                    listenerType,
+                    methodName,
+                    returnTypeClass,
+                    paramsArg
+            );
+
             String invokerInnerName = Character.toUpperCase(methodName.charAt(0)) + methodName.substring(1) + SEPARATOR + i + SEPARATOR + "Invoker";
 
             invokerEntries.append("new ").append(invokerInnerName).append("()");
@@ -82,6 +105,8 @@ public abstract class AbstractInvokerSourceGenerator extends Generator {
             nestedInvokers.append("""
 
                     public static final class %s implements %s<%s, %s> {
+
+                        private static final MethodDescriptor DESCRIPTOR = %s;
 
                         @Override
                         public Class<%s> eventType() {
@@ -98,11 +123,17 @@ public abstract class AbstractInvokerSourceGenerator extends Generator {
                             return %s;
                         }
 
+                        @Override
+                        public MethodDescriptor descriptor() {
+                            return DESCRIPTOR;
+                        }
+
                     %s}
                     """.formatted(
                     invokerInnerName,
                     invokerInterface().getSimpleName(),
                     listenerType, eventType,
+                    descriptorCode,
                     eventType, eventType,
                     priorityCode, ignoreCancelled,
                     invokerMethods.indent(4)
@@ -113,6 +144,7 @@ public abstract class AbstractInvokerSourceGenerator extends Generator {
 
         String code = """
                 %simport %s;
+                import %s;
                 import %s;
                 import %s;
                 import %s;
@@ -137,6 +169,7 @@ public abstract class AbstractInvokerSourceGenerator extends Generator {
                 %s}""".formatted(
                 packageDecl,
                 Event.class.getCanonicalName(),
+                MethodDescriptor.class.getCanonicalName(),
                 invokerInterface().getCanonicalName(),
                 Priority.class.getCanonicalName(),
                 SubscriberInvokerFactory.class.getCanonicalName(),

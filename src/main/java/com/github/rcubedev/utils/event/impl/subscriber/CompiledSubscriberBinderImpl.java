@@ -30,7 +30,7 @@ public final class CompiledSubscriberBinderImpl implements CompiledSubscriberBin
     public <B extends Event> List<Subscription> register(@NotNull Object target, @NotNull Identity identity,
                                                          @NotNull Registrar<B> registrar) {
         return switch (target) {
-            case Method method -> this.compiler.bindMethod(method, identity, registrar);
+            case Method method -> this.compiler.bindStaticMethod(method, identity, registrar).map(List::of).orElse(List.of());
             case Class<?> clazz -> this.compiler.bindStatic(clazz, identity, registrar);
             default -> this.compiler.bindInstance(target, identity, registrar);
         };

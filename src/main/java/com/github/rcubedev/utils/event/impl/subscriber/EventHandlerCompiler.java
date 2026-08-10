@@ -14,9 +14,9 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class EventHandlerCompiler<B extends Event> {
+public final class EventHandlerCompiler<B extends Event> {
 
-    // MethodKey.type().parameterType(0) -> Class<T> == HandlerFactory<T> --> generic is the same.
+    // MethodKey.type().parameterType(0) -> Class<T> == HandlerFactory<T> --> generic is the same. fixme maybe cache fail?
     private static final Map<MethodKey, HandlerFactory<?>> CLASS_METAFACTORIES = new ConcurrentHashMap<>();
 
     private final LinkerEngine linkageEngine;

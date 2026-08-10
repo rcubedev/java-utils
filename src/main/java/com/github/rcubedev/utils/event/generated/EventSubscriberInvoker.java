@@ -2,6 +2,7 @@ package com.github.rcubedev.utils.event.generated;
 
 import com.github.rcubedev.utils.event.api.Event;
 import com.github.rcubedev.utils.event.api.Priority;
+import com.github.rcubedev.utils.event.api.descriptor.method.MethodDescriptor;
 import org.jetbrains.annotations.ApiStatus;
 
 /**
@@ -41,4 +42,13 @@ public sealed interface EventSubscriberInvoker<T, E extends Event> permits Insta
      *           the exact same result.
      */
     boolean ignoreCancelled();
+
+    /**
+     * Returns the descriptor representing the underlying handler.
+     *
+     * @return the method descriptor
+     * @implSpec Implementations must be side-effect-free. Successive calls must return
+     *           the exact same result.
+     */
+    MethodDescriptor descriptor();
 }

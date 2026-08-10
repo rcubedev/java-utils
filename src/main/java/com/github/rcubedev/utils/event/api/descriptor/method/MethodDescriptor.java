@@ -1,7 +1,9 @@
 package com.github.rcubedev.utils.event.api.descriptor.method;
 
+import com.github.rcubedev.utils.event.impl.descriptor.method.BasicMethodDescriptor;
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.invoke.MethodType;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -30,6 +32,21 @@ public abstract class MethodDescriptor {
         this.methodName = Objects.requireNonNull(methodName);
         this.returnType = Objects.requireNonNull(returnType);
         this.parameterTypes = List.copyOf(parameterTypes);
+    }
+
+    public static MethodDescriptor of(Class<?> declaringClass, String methodName, MethodType type, String modifiers) {
+        modifiers = (modifiers == null || modifiers.isBlank()) ? "" : modifiers;
+        return new BasicMethodDescriptor(
+                modifiers,
+                declaringClass.descriptorString(),
+                methodName,
+                type.returnType().descriptorString(),
+                type.parameterList().stream().map(Class::descriptorString).toList()
+        );
+    }
+
+    public static MethodDescriptor of(String modifiers, Class<?> declaringClass, String methodName, Class<?> returnType, Class<?>... parameterTypes) {
+        return of(declaringClass, methodName, MethodType.methodType(returnType, parameterTypes), modifiers);
     }
 
     protected final String modifiers() {
