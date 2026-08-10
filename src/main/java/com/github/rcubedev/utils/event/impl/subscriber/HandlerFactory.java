@@ -12,7 +12,7 @@ import com.github.rcubedev.utils.event.api.annotation.SubscribeEvent;
  */
 public record HandlerFactory<E extends Event>(Priority priority, boolean ignoreCancelled, BindingFactory<E> factory) {
 
-    public interface Provider<E extends Event> {
-        HandlerFactory<E> create(Priority priority, boolean ignoreCancelled, BindingFactory<E> factory);
+    public interface Provider {
+        <E extends Event> HandlerFactory<E> create(Priority priority, boolean ignoreCancelled, BindingFactory<E> factory);
     }
 }

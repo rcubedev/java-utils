@@ -19,7 +19,7 @@ public class MethodLinker<T extends Event> {
     private final Class<?> targetClass;
     private final boolean isStatic;
     private final LinkerEngine linker;
-    private final HandlerFactory.Provider<T> handlerFactoryProvider;
+    private final HandlerFactory.Provider handlerFactoryProvider;
 
     @UnitTestIgnored
     public MethodLinker(Method method, Class<T> paramType, Identity identity, LinkerEngine linker) {
@@ -28,7 +28,7 @@ public class MethodLinker<T extends Event> {
     }
 
     MethodLinker(Class<?> targetClass, boolean isStatic, LinkerEngine linker, LinkageContext<T> context,
-                 HandlerFactory.Provider<T> handlerFactoryProvider) {
+                 HandlerFactory.Provider handlerFactoryProvider) {
         this.linker = linker;
         this.targetClass = targetClass;
         this.isStatic = isStatic;
