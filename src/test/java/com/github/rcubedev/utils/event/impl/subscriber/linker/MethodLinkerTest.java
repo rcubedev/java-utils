@@ -35,7 +35,7 @@ class MethodLinkerTest {
     private LinkageContext<TestEvent> mockContext;
 
     @Mock
-    private HandlerFactory.Provider<TestEvent> mockHandlerFactoryProvider;
+    private HandlerFactory.Provider mockHandlerFactoryProvider;
 
     @Mock
     private HandlerFactory<TestEvent> mockHandlerFactory;
