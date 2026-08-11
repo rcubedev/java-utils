@@ -5,6 +5,7 @@ import com.github.rcubedev.utils.event.impl.bus.dispatch.table.resolver.Resolver
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
+import java.util.function.Supplier;
 
 /**
  * A thread-safe table that routes events to their processors.
@@ -19,14 +20,17 @@ public interface DispatchTable<E extends Event> extends AutoCloseable {
      *
      * @param resolver the resolver used to compute processors when encountering an event
      *                 type for the first time
+     * @param activeTable a supplier providing the current active table reference for
+     *                    fallback routing
      * @param warmUpTypes a collection of event types to eagerly cache during init
      * @param <T> the base event type bound
      * @return a new active dispatch table instance
      */
     static <T extends Event> @NotNull DispatchTable<T> create(
             @NotNull Resolver<T> resolver,
+            @NotNull Supplier<? extends DispatchTable<T>> activeTable,
             @NotNull Collection<Class<? extends T>> warmUpTypes) {
-        return new ClassValueDispatchTable<>(resolver, warmUpTypes);
+        return new ClassValueDispatchTable<>(resolver, activeTable, warmUpTypes);
     }
 
     /**

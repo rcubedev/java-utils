@@ -3,7 +3,6 @@ package com.github.rcubedev.utils.event.impl.bus.dispatch.table.builder;
 import com.github.rcubedev.utils.event.api.Event;
 import com.github.rcubedev.utils.event.api.EventProcessor;
 import com.github.rcubedev.utils.event.api.Priority;
-import com.github.rcubedev.utils.event.impl.bus.dispatch.table.DispatchTable;
 import com.github.rcubedev.utils.event.impl.bus.dispatch.table.RegisteredParentResolver;
 import com.github.rcubedev.utils.event.impl.bus.dispatch.table.resolver.*;
 import com.github.rcubedev.utils.event.impl.bus.handler.EventSinkSnapshot;
@@ -21,30 +20,30 @@ public class Flattener<B extends Event> {
     private final DirectPoolResolver.Factory<B> directPoolFallbackFactory;
     private final HierarchyResolver.Factory<B> hierarchyFallbackFactory;
     private final DeadEventResolver.Factory<B> deadEventFallbackFactory;
-    private final DispatchTableFactory<B> tableFactory;
+    private final Result.Factory resultFactory;
 
     @UnitTestIgnored
     public Flattener(RegistrySnapshot<B> snapshot, RegisteredParentResolver<B> resolver) {
         this(snapshot, resolver, CompositeResolver::new, DirectPoolResolver::new,
-                HierarchyResolver::new, DeadEventResolver::new, DispatchTable::create);
+                HierarchyResolver::new, DeadEventResolver::new, Result::new);
     }
 
     Flattener(RegistrySnapshot<B> snapshot, RegisteredParentResolver<B> resolver,
               CompositeResolver.Factory<B> compositeFallbackFactory,
               DirectPoolResolver.Factory<B> directPoolFallbackFactory,
               HierarchyResolver.Factory<B> hierarchyFallbackFactory,
-              DeadEventResolver.Factory<B> deadEventFallbackFactory, DispatchTableFactory<B> tableFactory) {
+              DeadEventResolver.Factory<B> deadEventFallbackFactory, Result.Factory resultFactory) {
         this.snapshot = snapshot;
         this.resolver = resolver;
         this.compositeFallbackFactory = compositeFallbackFactory;
         this.directPoolFallbackFactory = directPoolFallbackFactory;
         this.hierarchyFallbackFactory = hierarchyFallbackFactory;
         this.deadEventFallbackFactory = deadEventFallbackFactory;
-        this.tableFactory = tableFactory;
+        this.resultFactory = resultFactory;
     }
 
     @SuppressWarnings("unchecked")
-    public @NotNull DispatchTable<B> flatten(List<List<Class<? extends B>>> families) {
+    public @NotNull Result<B> flatten(List<List<Class<? extends B>>> families) {
         Map<Class<? extends B>, Map<Priority, EventSinkSnapshot<? extends B>>> handlers = snapshot.getHandlers();
         Priority[] priorities = Priority.values();
 
@@ -73,6 +72,13 @@ public class Flattener<B extends Event> {
         Resolver<B> hierarchyLayer = hierarchyFallbackFactory.create(resolver, immutablePool);
         Resolver<B> deadEventLayer = deadEventFallbackFactory.create(immutablePool);
         Resolver<B> fallback = compositeFallbackFactory.create(List.of(directPoolLayer, hierarchyLayer, deadEventLayer));
-        return tableFactory.create(fallback, immutablePool.keySet());
+        return resultFactory.create(fallback, immutablePool.keySet());
+    }
+
+    public record Result<B extends Event>(Resolver<B> resolver, Set<Class<? extends B>> warmUpTypes) {
+
+        public interface Factory {
+            <B extends Event> Result<B> create(Resolver<B> resolver, Set<Class<? extends B>> warmUpTypes);
+        }
     }
 }

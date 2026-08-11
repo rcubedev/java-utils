@@ -16,7 +16,7 @@ public class EventBusIntegrationTests {
     class Initialization {
         @Test
         void testPublicConstructorInitializesDefaults() {
-            EventBus<TestEvent> prodBus = new EventBus<>(TestEvent.class, 3);
+            EventBus<TestEvent> prodBus = new EventBus<>(TestEvent.class, 3, true);
             assertEquals(TestEvent.class, prodBus.getBusType());
         }
     }

@@ -35,6 +35,7 @@ public final class EventBusBuilder<B extends Event> {
     private @Nullable AfterDispatchHook<B> afterDispatch;
     private @Nullable ErrorHandler<B> errorHandler;
     private boolean global = true;
+    private boolean recursionGuardEnabled = true;
     private int maxDepth = 128;
 
     private EventBusBuilder(@NotNull Class<B> busType) {
@@ -114,8 +115,24 @@ public final class EventBusBuilder<B extends Event> {
     }
 
     /**
+     * Whether the recursion guard of the bus should be enabled
+     * <p>
+     * <b>Warning:</b> Disabling the recursion guard removes protection against infinite event loops.
+     * <p>
+     * Default: {@code true}
+     * @param enabled if the recursion guard should be enabled
+     * @return this builder
+     */
+    public @NotNull EventBusBuilder<B> recursionGuard(boolean enabled) {
+        this.recursionGuardEnabled = enabled;
+        return this;
+    }
+
+    /**
      * Sets the maximum recursion depth for event posting to prevent {@link StackOverflowError}
      * from circular event logic.
+     * <p>
+     * Ignored if {@link #recursionGuard(boolean)} == {@code false}.
      * <p>
      * Default: {@code 128}
      *
@@ -137,7 +154,7 @@ public final class EventBusBuilder<B extends Event> {
     public @NotNull IEventBus<B> build() {
         EventBusConfig<B> config = new EventBusConfig<>(beforeDispatch, afterDispatch, errorHandler, global, maxDepth);
 
-        EventBus<B> impl = new EventBus<>(busType, maxDepth);
+        EventBus<B> impl = new EventBus<>(busType, maxDepth, recursionGuardEnabled);
         if (!config.hasHooks()) return register(impl);
 
         // Wrap the implementation with the hooks

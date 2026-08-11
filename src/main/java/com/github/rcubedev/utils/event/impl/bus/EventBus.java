@@ -30,8 +30,8 @@ public final class EventBus<B extends Event> implements IEventBus<B> {
     private final MasterSubscriptionFactory masterSubFactory;
 
     @UnitTestIgnored
-    public EventBus(Class<B> busType, int maxStackDepth) {
-        this(busType, new HandlerRegistry<>(), new Dispatcher<>(busType, maxStackDepth));
+    public EventBus(Class<B> busType, int maxStackDepth, boolean recursionGuardEnabled) {
+        this(busType, new HandlerRegistry<>(), new Dispatcher<>(busType, maxStackDepth, recursionGuardEnabled));
     }
 
     @UnitTestIgnored

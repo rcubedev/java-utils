@@ -4,7 +4,6 @@ import com.github.rcubedev.utils.event.api.Event;
 import com.github.rcubedev.utils.event.api.EventProcessor;
 import com.github.rcubedev.utils.event.api.Priority;
 import com.github.rcubedev.utils.event.api.TestEvent;
-import com.github.rcubedev.utils.event.impl.bus.dispatch.table.DispatchTable;
 import com.github.rcubedev.utils.event.impl.bus.dispatch.table.RegisteredParentResolver;
 import com.github.rcubedev.utils.event.impl.bus.dispatch.table.resolver.CompositeResolver;
 import com.github.rcubedev.utils.event.impl.bus.dispatch.table.resolver.DeadEventResolver;
@@ -45,7 +44,7 @@ class FlattenerTest {
     private DeadEventResolver.Factory<Event> mockDeadEventFallbackFactory;
 
     @Mock
-    private DispatchTableFactory<Event> mockTableFactory;
+    private Flattener.Result.Factory mockResultFactory;
 
     @Mock
     private DirectPoolResolver<Event> mockDirectPoolResolver;
@@ -60,7 +59,7 @@ class FlattenerTest {
     private CompositeResolver<Event> mockCompositeResolver;
 
     @Mock
-    private DispatchTable<Event> mockDispatchTable;
+    private Flattener.Result<Event> mockResult;
 
     @Mock
     private EventSinkSnapshot<Event> mockSink1;
@@ -88,7 +87,7 @@ class FlattenerTest {
                 mockDirectPoolFallbackFactory,
                 mockHierarchyFallbackFactory,
                 mockDeadEventFallbackFactory,
-                mockTableFactory
+                mockResultFactory
         );
     }
 
@@ -108,13 +107,13 @@ class FlattenerTest {
         when(mockSnapshot.getHandlers()).thenReturn(Collections.emptyMap());
         setupFallbackStubbing();
 
-        when(mockTableFactory.create(eq(mockCompositeResolver), anyCollection()))
-                .thenReturn(mockDispatchTable);
+        when(mockResultFactory.create(eq(mockCompositeResolver), anySet()))
+                .thenReturn(mockResult);
 
-        DispatchTable<Event> table = flattener.flatten(Collections.emptyList());
+        Flattener.Result<Event> result = flattener.flatten(Collections.emptyList());
 
-        assertNotNull(table);
-        assertSame(mockDispatchTable, table);
+        assertNotNull(result);
+        assertSame(mockResult, result);
     }
 
     @Test
@@ -125,13 +124,13 @@ class FlattenerTest {
         List<List<Class<? extends Event>>> families = new ArrayList<>();
         families.add(Collections.emptyList());
 
-        when(mockTableFactory.create(eq(mockCompositeResolver), anyCollection()))
-                .thenReturn(mockDispatchTable);
+        when(mockResultFactory.create(eq(mockCompositeResolver), anySet()))
+                .thenReturn(mockResult);
 
-        DispatchTable<Event> table = flattener.flatten(families);
+        Flattener.Result<Event> result = flattener.flatten(families);
 
-        assertNotNull(table);
-        assertSame(mockDispatchTable, table);
+        assertNotNull(result);
+        assertSame(mockResult, result);
     }
 
     @Test
@@ -172,13 +171,12 @@ class FlattenerTest {
         when(mockCompositeFallbackFactory.create(eq(List.of(mockDirectPoolResolver, mockHierarchyResolver, mockDeadEventResolver))))
                 .thenReturn(mockCompositeResolver);
 
-        when(mockTableFactory.create(eq(mockCompositeResolver), anyCollection()))
-                .thenReturn(mockDispatchTable);
+        when(mockResultFactory.create(eq(mockCompositeResolver), anySet())).thenReturn(mockResult);
 
-        DispatchTable<Event> table = flattener.flatten(families);
+        Flattener.Result<Event> result = flattener.flatten(families);
 
-        assertNotNull(table);
-        assertSame(mockDispatchTable, table);
+        assertNotNull(result);
+        assertSame(mockResult, result);
     }
 
     @Test
@@ -189,16 +187,16 @@ class FlattenerTest {
         when(mockSnapshot.getHandlers()).thenReturn(handlersMap);
         setupFallbackStubbing();
 
-        when(mockTableFactory.create(eq(mockCompositeResolver), anyCollection()))
-                .thenReturn(mockDispatchTable);
+        when(mockResultFactory.create(eq(mockCompositeResolver), anySet()))
+                .thenReturn(mockResult);
 
         List<Class<? extends Event>> family = List.of(SuperEvent.class);
         List<List<Class<? extends Event>>> families = List.of(family);
 
-        DispatchTable<Event> table = flattener.flatten(families);
+        Flattener.Result<Event> result = flattener.flatten(families);
 
-        assertNotNull(table);
-        assertSame(mockDispatchTable, table);
+        assertNotNull(result);
+        assertSame(mockResult, result);
     }
 
     private void verifyPoolContents(Map<Class<? extends Event>, List<EventProcessor<? super Event>>> pool) {

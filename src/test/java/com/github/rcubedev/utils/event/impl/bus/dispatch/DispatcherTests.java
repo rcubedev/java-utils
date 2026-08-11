@@ -15,9 +15,6 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.lang.reflect.Field;
-import java.util.concurrent.locks.StampedLock;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -60,29 +57,6 @@ class DispatcherTests {
 
             verify(guard).resetTo(5);
         }
-
-        // fixme jank: uses reflection, mocks things that do not own (StampedLock)
-        @Test
-        void dispatch_RecoversViaReadLockWhenOptimisticReadIsInvalidated() throws Exception {
-            Field lockField = Dispatcher.class.getDeclaredField("lock");
-            lockField.setAccessible(true);
-
-            StampedLock realLock = (StampedLock) lockField.get(dispatcher);
-            StampedLock lockSpy = spy(realLock);
-
-            lockField.set(dispatcher, lockSpy);
-
-            when(lockSpy.validate(anyLong())).thenReturn(false);
-            when(guard.increment()).thenReturn(7);
-
-            TestEvent event = new TestEvent();
-            dispatcher.dispatch(event);
-
-            verify(lockSpy).readLock();
-            verify(lockSpy).unlockRead(anyLong());
-            verify(initialTable).dispatch(event);
-            verify(guard).resetTo(7);
-        }
     }
 
     @Nested
@@ -104,7 +78,7 @@ class DispatcherTests {
                 DispatchTableBuilder<TestEvent> builder = mock(DispatchTableBuilder.class);
                 DispatchTable<TestEvent> newTable = mock(DispatchTable.class);
 
-                builderMock.when(() -> DispatchTableBuilder.create(any())).thenReturn(builder);
+                builderMock.when(() -> DispatchTableBuilder.create(eq(TestEvent.class), any())).thenReturn(builder);
                 when(builder.setSnapshot(any())).thenReturn(builder);
                 when(builder.build()).thenReturn(newTable);
 
@@ -123,6 +97,12 @@ class DispatcherTests {
 
     @Nested
     class Helpers {
+
+        @Test
+        void getTable_ReturnsCurrentActiveTable() {
+            assertSame(initialTable, dispatcher.getTable());
+        }
+
         @Test
         void openBypassTo_DelegatesToGuard() {
             RecursionBypass mockBypass = mock(RecursionBypass.class);
@@ -130,6 +110,16 @@ class DispatcherTests {
 
             assertEquals(mockBypass, dispatcher.openBypassTo(10));
             verify(guard).bypass(10);
+        }
+
+        @Test
+        void openBypassTo_ReturnsEmptyBypassWhenDisabled() {
+            Dispatcher<TestEvent> disabledDispatcher = new Dispatcher<>(TestEvent.class, null, initialTable);
+
+            RecursionBypass bypass = disabledDispatcher.openBypassTo(10);
+
+            assertNotNull(bypass);
+            assertDoesNotThrow(bypass::close);
         }
     }
 }

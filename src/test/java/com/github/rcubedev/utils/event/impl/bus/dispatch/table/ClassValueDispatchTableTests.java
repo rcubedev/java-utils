@@ -25,6 +25,9 @@ class ClassValueDispatchTableTests {
     @Mock
     private Resolver<Event> mockResolver;
 
+    @Mock
+    private DispatchTable<Event> mockActiveTable;
+
     static class TestEventA extends TestEvent {}
     static class TestEventB extends TestEvent {}
     static class UnregisteredEvent extends TestEvent {}
@@ -38,7 +41,7 @@ class ClassValueDispatchTableTests {
         when(mockResolver.resolve(TestEventB.class)).thenReturn(processorsB);
 
         Set<Class<? extends Event>> warmUpTypes = Set.of(TestEventA.class, TestEventB.class);
-        try (ClassValueDispatchTable<Event> table = new ClassValueDispatchTable<>(mockResolver, warmUpTypes)) {
+        try (ClassValueDispatchTable<Event> table = new ClassValueDispatchTable<>(mockResolver, () -> mockActiveTable, warmUpTypes)) {
             TestEventA eventA = new TestEventA();
             table.dispatch(eventA);
 
@@ -56,7 +59,7 @@ class ClassValueDispatchTableTests {
 
         when(mockResolver.resolve(UnregisteredEvent.class)).thenReturn(fallbackProcessors);
 
-        try (ClassValueDispatchTable<Event> table = new ClassValueDispatchTable<>(mockResolver, Set.of())) {
+        try (ClassValueDispatchTable<Event> table = new ClassValueDispatchTable<>(mockResolver, () -> mockActiveTable, Set.of())) {
             UnregisteredEvent unregisteredEvent = new UnregisteredEvent();
             table.dispatch(unregisteredEvent);
 
@@ -66,21 +69,21 @@ class ClassValueDispatchTableTests {
     }
 
     @Test
-    void testClosePurgesTrackedTypesFromCache() {
+    void testCloseDelegatesToActiveTableAndPreventsReResolution() {
         List<EventProcessor<? super Event>> processorsA = List.of(mockProcessor1);
         when(mockResolver.resolve(TestEventA.class)).thenReturn(processorsA);
 
-        ClassValueDispatchTable<Event> table = new ClassValueDispatchTable<>(mockResolver, Set.of(TestEventA.class));
+        ClassValueDispatchTable<Event> table = new ClassValueDispatchTable<>(mockResolver, () -> mockActiveTable, Set.of(TestEventA.class));
 
         verify(mockResolver, times(1)).resolve(TestEventA.class);
 
         table.close();
 
-        // querying the table again after close should re-trigger computation as
-        // the old value was evicted.
+        // dispatching after close must delegate directly to activeTable and NOT reinvoke mockResolver
         TestEventA eventA = new TestEventA();
         table.dispatch(eventA);
 
-        verify(mockResolver, times(2)).resolve(TestEventA.class);
+        verify(mockActiveTable, times(1)).dispatch(eventA);
+        verify(mockResolver, times(1)).resolve(TestEventA.class);
     }
 }

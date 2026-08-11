@@ -21,9 +21,12 @@ class DispatchTableBuilderTests {
     @Mock
     private RegistrySnapshot<Event> mockSnapshot;
 
+    @Mock
+    private DispatchTable<Event> mockActiveTable;
+
     @Test
-    void create_WithBusTypeOnly_ShouldInitializeWithEmptyTable() {
-        DispatchTableBuilder<Event> builder = DispatchTableBuilder.create(Event.class);
+    void create_WithBusTypeAndActiveTable_ShouldInitializeWithEmptyTable() {
+        DispatchTableBuilder<Event> builder = DispatchTableBuilder.create(Event.class, () -> mockActiveTable);
         DispatchTable<Event> table = builder.build();
 
         assertNotNull(table, "Initial table instance should never be null");
@@ -33,7 +36,7 @@ class DispatchTableBuilderTests {
     @Test
     void setSnapshot_WithEmptySnapshot_ShouldReturnEmptyTable() {
         when(mockSnapshot.getHandlers()).thenReturn(Map.of());
-        DispatchTableBuilder<Event> builder = DispatchTableBuilder.create(Event.class);
+        DispatchTableBuilder<Event> builder = DispatchTableBuilder.create(Event.class, () -> mockActiveTable);
 
         DispatchTableBuilder<Event> returnedBuilder = builder.setSnapshot(mockSnapshot);
         DispatchTable<Event> table = builder.build();
@@ -46,7 +49,7 @@ class DispatchTableBuilderTests {
     void staticCreate_WithSnapshot_ShouldBuildDirectly() {
         when(mockSnapshot.getHandlers()).thenReturn(Map.of());
 
-        DispatchTable<Event> table = DispatchTableBuilder.create(Event.class, mockSnapshot);
+        DispatchTable<Event> table = DispatchTableBuilder.create(Event.class, () -> mockActiveTable, mockSnapshot);
 
         assertNotNull(table);
         assertSame(DispatchTable.empty(), table);
@@ -58,7 +61,7 @@ class DispatchTableBuilderTests {
         when(mockSnapshot.getHandlers()).thenReturn(mockHandlers);
 
         assertDoesNotThrow(() -> {
-            DispatchTable<Event> table = DispatchTableBuilder.create(Event.class, mockSnapshot);
+            DispatchTable<Event> table = DispatchTableBuilder.create(Event.class, () -> mockActiveTable, mockSnapshot);
             assertNotNull(table);
         });
     }
