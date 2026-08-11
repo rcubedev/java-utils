@@ -29,7 +29,8 @@ public final class RecursionGuard {
 
     public void resetTo(int previousValue) {
         int[] d = depth.get();
-        if ((d[0] = previousValue) == 0) depth.remove();
+        d[0] = previousValue;
+        //if ((d[0] = previousValue) == 0) depth.remove();
     }
 
     public @NotNull RecursionBypass bypass(int extraBudget) {
