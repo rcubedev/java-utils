@@ -55,13 +55,7 @@ public class Dispatcher<B extends Event> {
             return;
         }
 
-        int previous = this.guard.increment();
-        // todo(jdk25): scoped values
-        try {
-            stableTable.dispatch(event);
-        } finally {
-            this.guard.resetTo(previous);
-        }
+        this.guard.run(() -> stableTable.dispatch(event));
     }
 
     public @NotNull RecursionBypass openBypassTo(int extraBudget) {

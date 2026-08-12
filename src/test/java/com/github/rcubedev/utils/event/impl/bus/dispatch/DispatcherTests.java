@@ -10,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -36,26 +35,29 @@ class DispatcherTests {
     class Dispatching {
 
         @Test
-        void dispatch_FollowsProtocol() {
+        void dispatch_DelegatesToGuardRun() {
             TestEvent event = new TestEvent();
-            when(guard.increment()).thenReturn(42);
+
+            doAnswer(invocation -> {
+                Runnable action = invocation.getArgument(0);
+                action.run();
+                return null;
+            }).when(guard).run(any());
 
             dispatcher.dispatch(event);
 
-            InOrder inOrder = inOrder(guard, initialTable);
-            inOrder.verify(guard).increment();
-            inOrder.verify(initialTable).dispatch(event);
-            inOrder.verify(guard).resetTo(42);
+            verify(guard).run(any());
+            verify(initialTable).dispatch(event);
         }
 
         @Test
-        void dispatch_ResetsGuardOnException() {
-            when(guard.increment()).thenReturn(5);
-            doThrow(new RuntimeException()).when(initialTable).dispatch(any());
+        void dispatch_PropagatesExceptionFromGuardRun() {
+            doThrow(new RuntimeException("Stack overflow")).when(guard).run(any());
 
             assertThrows(RuntimeException.class, () -> dispatcher.dispatch(new TestEvent()));
 
-            verify(guard).resetTo(5);
+            verify(guard).run(any());
+            verify(initialTable, never()).dispatch(any());
         }
     }
 
@@ -87,6 +89,13 @@ class DispatcherTests {
                 verify(initialTable, times(1)).close();
 
                 TestEvent testEvent = new TestEvent();
+
+                doAnswer(invocation -> {
+                    Runnable action = invocation.getArgument(0);
+                    action.run();
+                    return null;
+                }).when(guard).run(any());
+
                 dispatcher.dispatch(testEvent);
 
                 verify(newTable).dispatch(testEvent);
