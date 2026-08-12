@@ -66,7 +66,7 @@ public final class ClassValueDispatchTable<E extends Event> implements DispatchT
             next.dispatch(event);
             return;
         }
-        for (EventProcessor<? super E> processor : Holder.empty()) processor.process(event);
+        for (EventProcessor<? super E> processor : processors) processor.process(event);
     }
 
     /**
