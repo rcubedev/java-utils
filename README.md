@@ -76,5 +76,31 @@ Helper utilities designed to simplify configuration serialization
 ## Requirements
 Java 21+
 
+## Usage
+Add the project as a dependency using [JitPack](https://jitpack.io/):
+
+### Groovy DSL
+```groovy
+repositories {
+  maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+  implementation 'com.github.rcubedev:java-utils:VERSION'
+}
+```
+
+### Kotlin DSL
+```kotlin
+repositories {
+    maven("https://jitpack.io")
+}
+
+dependencies {
+    implementation("com.github.rcubedev:java-utils:VERSION")
+}
+```
+
+
 ## License
 This project is licensed under the [Apache License 2.0](LICENSE).
