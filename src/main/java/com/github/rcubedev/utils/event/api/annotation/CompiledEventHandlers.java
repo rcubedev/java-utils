@@ -16,5 +16,4 @@ import java.lang.annotation.*;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
 public @interface CompiledEventHandlers {
-    //fixme lets move it into api pkg somewhere but not directly sm sub pkg
 }

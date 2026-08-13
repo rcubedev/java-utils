@@ -1,6 +1,7 @@
 package com.github.rcubedev.utils.event.impl.subscriber.validation;
 
 import com.github.rcubedev.utils.event.api.Event;
+import com.github.rcubedev.utils.event.api.annotation.Weak;
 import com.github.rcubedev.utils.event.api.subscriber.validation.MethodValidator;
 
 import java.lang.reflect.Method;
@@ -18,6 +19,10 @@ public final class EventMethodValidator<E extends Event> implements MethodValida
     public Class<? extends E> validate(Method method) throws IllegalArgumentException {
         if (!Modifier.isPublic(method.getModifiers())) {
             throw new IllegalArgumentException("@SubscribeEvent method must be public: " + method);
+        }
+        boolean isWeak = method.isAnnotationPresent(Weak.class) || method.getDeclaringClass().isAnnotationPresent(Weak.class);
+        if (Modifier.isStatic(method.getModifiers()) && isWeak) {
+            throw new IllegalArgumentException("@Weak cannot be applied to static event handler methods or its declaring class: " + method);
         }
         if (method.getParameterCount() != 1) {
             throw new IllegalArgumentException(

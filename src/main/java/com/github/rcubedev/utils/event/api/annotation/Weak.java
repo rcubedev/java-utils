@@ -15,7 +15,6 @@ import java.lang.annotation.*;
  * This helps reduce memory leaks by allowing listeners to be collected when no
  * longer strongly referenced elsewhere.
  */
-//todo disallow on static event handler methods/static listener classes on runtime reflection side
 @Documented
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
