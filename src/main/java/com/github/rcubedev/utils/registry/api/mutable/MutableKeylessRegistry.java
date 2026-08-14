@@ -2,6 +2,7 @@ package com.github.rcubedev.utils.registry.api.mutable;
 
 import com.github.rcubedev.utils.registry.api.IdRegistry;
 import com.github.rcubedev.utils.registry.api.exception.RegistryFrozenException;
+import com.github.rcubedev.utils.registry.impl.mutable.SimpleMutableKeylessRegistry;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
@@ -34,5 +35,9 @@ public interface MutableKeylessRegistry<T> extends MutableRegistry<T>, IdRegistr
 
     default @NotNull Optional<T> getById(int id) {
         return get(id);
+    }
+
+    static <T> MutableKeylessRegistry<T> create(String name) {
+        return new SimpleMutableKeylessRegistry<>(name);
     }
 }

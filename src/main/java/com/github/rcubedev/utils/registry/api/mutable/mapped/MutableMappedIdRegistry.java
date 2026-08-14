@@ -1,6 +1,7 @@
 package com.github.rcubedev.utils.registry.api.mutable.mapped;
 
 import com.github.rcubedev.utils.registry.api.mapped.MappedIdRegistry;
+import com.github.rcubedev.utils.registry.impl.mutable.mapped.SimpleMutableMappedIdRegistry;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
@@ -48,4 +49,8 @@ public interface MutableMappedIdRegistry<K, V> extends MutableMappedRegistry<K, 
      * @return the integer id, or {@link Integer#MIN_VALUE} if not present.
      */
     int getId(@NotNull K key);
+
+    static <K, V> MutableMappedIdRegistry<K, V> create(String name) {
+        return new SimpleMutableMappedIdRegistry<>(name);
+    }
 }
