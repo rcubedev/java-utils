@@ -7,7 +7,7 @@ module com.github.rcubedev.utils {
     requires org.slf4j; // maybe remove in future
 
     requires com.google.common;
-    requires kaleido.config; // possibly add own config lib in future
+    requires static kaleido.config; // possibly add own config lib in future
 
     requires static org.jetbrains.annotations;
     requires java.compiler;
