@@ -33,7 +33,7 @@ public final class MainBus {
     /**
      * Singleton instance of the main event bus.
      */
-    public IEventBus<Event> get() {
+    public static IEventBus<Event> get() {
         return Holder.BUS;
     }
 
