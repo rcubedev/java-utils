@@ -46,6 +46,7 @@ public final class ClassLoaderServiceLayer implements ServiceLayer {
         boolean eager = Eager.class.isAssignableFrom(contract);
 //        Stream<Service<S>> stream = ServiceLoader.load(contract).stream()
 //                .map(ProviderServiceImpl::new);
+        this.getClass().getModule().addUses(contract);
 
         Stream<Service<S>> stream = ServiceLoader.load(contract, this.classLoader).stream()
                 .map(ProviderServiceImpl::new);
