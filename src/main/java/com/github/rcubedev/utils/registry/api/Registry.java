@@ -1,21 +1,18 @@
 package com.github.rcubedev.utils.registry.api;
 
-import com.github.rcubedev.utils.registry.api.exception.RegistryFrozenException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
 
+import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
- * A freezable registry of entries of type {@link T}.
- * <p>
- * Entries are added via {@link #register} until {@link #freeze()} is called,
- * after which the registry is immutable and safe to share and reuse freely
- * across as many consumers as needed.
+ * A read only registry holding entries of type {@link T}
  *
- * @param <T> the type of entry held by this registry
+ * @param <T> the entry type
  */
-public interface Registry<T> {
+public interface Registry<T> extends Iterable<T> {
 
     /**
      * The name of this registry
@@ -23,24 +20,33 @@ public interface Registry<T> {
     @NotNull String name();
 
     /**
-     * Registers an entry.
-     *
-     * @throws RegistryFrozenException if this registry is frozen
-     */
-    void register(@NotNull T entry);
-
-    /**
-     * Freezes this registry. No further registration is permitted.
-     *
-     * @throws RegistryFrozenException if already frozen
-     */
-    void freeze();
-
-    /**
-     * Returns all registered entries in registration order.
-     *
-     * @throws RegistryFrozenException if not yet frozen
-     * @return unmodifiable list; never null
+     * Returns an unmodifiable list of all registered entries.
      */
     @NotNull @Unmodifiable List<T> entries();
+
+    /**
+     * Returns the total number of registered entries.
+     */
+    default int size() {
+        return entries().size();
+    }
+
+    /**
+     * Returns true if no entries have been registered.
+     */
+    default boolean isEmpty() {
+        return entries().isEmpty();
+    }
+
+    /**
+     * Returns a sequential {@link Stream} over the registered entries.
+     */
+    default Stream<T> stream() {
+        return entries().stream();
+    }
+
+    @Override
+    default @NotNull Iterator<T> iterator() {
+        return entries().iterator();
+    }
 }

@@ -1,7 +1,7 @@
 package com.github.rcubedev.utils.services.api;
 
-import com.github.rcubedev.utils.registry.api.Registry;
-import com.github.rcubedev.utils.registry.impl.SimpleRegistry;
+import com.github.rcubedev.utils.registry.api.mutable.MutableKeylessRegistry;
+import com.github.rcubedev.utils.registry.impl.mutable.SimpleMutableKeylessRegistry;
 import com.github.rcubedev.utils.services.api.spi.ServiceLayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 
 public final class ServiceLayerRegistry {
 
-    private final Registry<Supplier<ServiceLayer>> delegate = new SimpleRegistry<>("service-layers");
+    private final MutableKeylessRegistry<Supplier<ServiceLayer>> delegate = new SimpleMutableKeylessRegistry<>("service-layers");
 
     public void register(@NotNull Supplier<ServiceLayer> factory) {
         this.delegate.register(factory);

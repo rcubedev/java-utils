@@ -1,6 +1,8 @@
 package com.github.rcubedev.utils.services.impl.layer;
 
-import com.github.rcubedev.utils.registry.impl.SimpleRegistry;
+import com.github.rcubedev.utils.registry.api.mutable.MutableKeylessRegistry;
+import com.github.rcubedev.utils.registry.api.mutable.MutableRegistry;
+import com.github.rcubedev.utils.registry.impl.mutable.SimpleMutableKeylessRegistry;
 import com.github.rcubedev.utils.services.api.spi.Service;
 import com.github.rcubedev.utils.services.api.spi.ServiceLayer;
 import com.github.rcubedev.utils.services.impl.DirectServiceImpl;
@@ -17,7 +19,8 @@ public final class ManualServiceLayer implements ServiceLayer {
     private final String name;
     private final int priority;
 
-    private final Map<Class<?>, SimpleRegistry<Service<?>>> registryMap = new ConcurrentHashMap<>();
+    // future: use registry of registries
+    private final Map<Class<?>, MutableKeylessRegistry<Service<?>>> registryMap = new ConcurrentHashMap<>();
 
     public ManualServiceLayer(@NotNull String name, int priority) {
         this.name = name;
@@ -25,9 +28,9 @@ public final class ManualServiceLayer implements ServiceLayer {
     }
 
     public <S> ManualServiceLayer register(@NotNull Class<S> contract, @NotNull Supplier<? extends S> factory, @NotNull Class<? extends S> implType) {
-        SimpleRegistry<Service<?>> contractRegistry = this.registryMap.computeIfAbsent(
+        MutableKeylessRegistry<Service<?>> contractRegistry = this.registryMap.computeIfAbsent(
                 contract,
-                k -> new SimpleRegistry<>(this.name + "/" + contract.getSimpleName())
+                k -> new SimpleMutableKeylessRegistry<>(this.name + "/" + contract.getSimpleName())
         );
 
         contractRegistry.register(new DirectServiceImpl<>(implType, factory));
@@ -38,7 +41,7 @@ public final class ManualServiceLayer implements ServiceLayer {
      * Call this when mod initialization wraps up to seal the services from further changes.
      */
     public void freeze() {
-        this.registryMap.values().forEach(SimpleRegistry::freeze);
+        this.registryMap.values().forEach(MutableRegistry::freeze);
     }
 
     @Override
@@ -49,7 +52,7 @@ public final class ManualServiceLayer implements ServiceLayer {
     @Override
     @SuppressWarnings("unchecked")
     public <S> @NotNull Optional<Service<S>> find(@NotNull Class<S> contract) {
-        SimpleRegistry<Service<?>> contractRegistry = this.registryMap.get(contract);
+        MutableKeylessRegistry<Service<?>> contractRegistry = this.registryMap.get(contract);
         if (contractRegistry == null) return Optional.empty();
 
         try {
@@ -65,7 +68,7 @@ public final class ManualServiceLayer implements ServiceLayer {
     @Override
     @SuppressWarnings("unchecked")
     public <S> @NotNull @Unmodifiable List<Service<S>> findAll(@NotNull Class<S> contract) {
-        SimpleRegistry<Service<?>> contractRegistry = this.registryMap.get(contract);
+        MutableKeylessRegistry<Service<?>> contractRegistry = this.registryMap.get(contract);
         if (contractRegistry == null) return Collections.emptyList();
 
         try {

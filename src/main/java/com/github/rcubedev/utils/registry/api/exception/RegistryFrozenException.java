@@ -1,8 +1,9 @@
 package com.github.rcubedev.utils.registry.api.exception;
 
+import com.github.rcubedev.utils.registry.api.mutable.MutableRegistry;
+
 /**
- * Thrown when a mutating operation is attempted on a frozen
- * {@link com.github.rcubedev.utils.registry.api.Registry}.
+ * Thrown when a mutating operation is attempted on a frozen {@link MutableRegistry MutableRegistry}
  */
 public final class RegistryFrozenException extends IllegalStateException {
 

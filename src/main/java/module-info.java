@@ -34,6 +34,9 @@ module com.github.rcubedev.utils {
 
     exports com.github.rcubedev.utils.registry.api;
     exports com.github.rcubedev.utils.registry.api.exception;
+    exports com.github.rcubedev.utils.registry.api.mapped;
+    exports com.github.rcubedev.utils.registry.api.mutable;
+    exports com.github.rcubedev.utils.registry.api.mutable.mapped;
 
     exports com.github.rcubedev.utils.services.api;
     exports com.github.rcubedev.utils.services.api.exception;
