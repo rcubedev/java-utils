@@ -20,17 +20,6 @@ def patchedMainDir = layout.buildDirectory.dir("patched/test/classes/java/main")
 
 repositories {
     mavenCentral()
-    /*exclusiveContent {
-        forRepository {
-            maven {
-                url "https://repo.spongepowered.org/repository/maven-public"
-                name = "Sponge"
-            }
-        }
-        filter {
-            includeGroupAndSubgroups("org.spongepowered")
-        }
-    }*/
     maven { url 'https://repo.sleeping.town/' }
 }
 
@@ -69,7 +58,6 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.9'
 
     compileOnly 'org.jetbrains:annotations:24.1.0'
-    //compileOnly 'org.spongepowered:mixin:0.8.5'
 
     runtimeOnly 'org.apache.logging.log4j:log4j-api:2.22.1'
     runtimeOnly 'org.apache.logging.log4j:log4j-core:2.22.1'
@@ -115,7 +103,7 @@ jar {
     }
 }
 
-// todo: this will be fixed when kaleido becomes module or own config lib
+// this can be removed if kaleido becomes module
 tasks.named('compileJava', JavaCompile) {
     options.compilerArgs.addAll(['--module-path', classpath.asPath])
 }
@@ -133,7 +121,7 @@ test {
     finalizedBy jacocoTestReport
     jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}", "-Xshare:off"
 
-    // Swap standard main production output folders out for our isolated sandbox
+    // swap main with patched variant
     classpath = files(patchedMainDir) + (classpath - sourceSets.main.output.classesDirs)
 }
 
@@ -177,7 +165,7 @@ tasks.register('jacocoIntegrationTestReport', JacocoReport) {
 
 check.dependsOn integrationTest
 
-// configure the maven publication
+// possibly publish to GH pkgs
 publishing {
     publications {
         create("mavenJava", MavenPublication) {
@@ -186,11 +174,6 @@ publishing {
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
     repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
     }
 }

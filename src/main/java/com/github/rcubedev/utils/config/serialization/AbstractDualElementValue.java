@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractDualElementValue<A, B, S extends AbstractDualElementValue<A, B, S>> implements ConfigSerializableObject<Object> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("Kaleido Config"); // todo maybe change
+    private static final Logger LOGGER = LoggerFactory.getLogger("Kaleido Config Helper"); // todo maybe change
 
     private final Object value; // Can hold either A or B
     private final TypedClass<A> typeA;
@@ -88,7 +88,7 @@ public abstract class AbstractDualElementValue<A, B, S extends AbstractDualEleme
         TypedClass<A> typeA = getTypeA();
         try {
             return invokeMatchingConstructor(Argument.Builder.of(value, typeA));
-        } catch (NoSuchElementException firstEx) { // fixme change when the ex is changed
+        } catch (NoSuchElementException firstEx) { // change when the ex is changed
             try {
                 logFallback(this.getClass().getTypeName(), value.getClass().getTypeName(), typeA.getClass().getGenericSuperclass().getTypeName());
                 return invokeMatchingConstructor(Argument.Builder.of(value, typeA), Argument.Builder.of(typeA, new TypedClass<>(){}), Argument.Builder.of(getTypeB(), new TypedClass<>(){}));
@@ -120,7 +120,7 @@ public abstract class AbstractDualElementValue<A, B, S extends AbstractDualEleme
         TypedClass<B> typeB = getTypeB();
         try {
             return invokeMatchingConstructor(Argument.Builder.of(value, typeB));
-        } catch (NoSuchElementException firstEx) { // fixme change when the ex is changed
+        } catch (NoSuchElementException firstEx) { // change when the ex is changed
             try {
                 logFallback(this.getClass().getTypeName(), value.getClass().getTypeName(), typeB.getClass().getGenericSuperclass().getTypeName());
                 return invokeMatchingConstructor(Argument.Builder.of(value, typeB), Argument.Builder.of(getTypeA(), new TypedClass<>(){}), Argument.Builder.of(typeB, new TypedClass<>(){}));
@@ -219,7 +219,7 @@ public abstract class AbstractDualElementValue<A, B, S extends AbstractDualEleme
 
         String argsStr = String.join(", ", ctorArgs);
 
-        // fixme use ILoggerRequired
+        // use ILoggerRequired
         LOGGER.warn("Falling back to constructor '{}({})'. This is supported but not recommended; prefer defining an explicit constructor.",
                 classCtor, argsStr);
     }

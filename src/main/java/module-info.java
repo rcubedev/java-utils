@@ -4,10 +4,10 @@ import com.github.rcubedev.utils.event.impl.apt.SubscribeProcessor;
 import javax.annotation.processing.Processor;
 
 module com.github.rcubedev.utils {
-    requires org.slf4j; // fixme this might be gone soon
+    requires org.slf4j; // maybe remove in future
 
     requires com.google.common;
-    requires kaleido.config; // fixme possible own config lib in future
+    requires kaleido.config; // possibly add own config lib in future
 
     requires static org.jetbrains.annotations;
     requires java.compiler;
@@ -38,5 +38,4 @@ module com.github.rcubedev.utils {
     exports com.github.rcubedev.utils.services.api;
     exports com.github.rcubedev.utils.services.api.exception;
     exports com.github.rcubedev.utils.services.api.spi;
-    exports com.github.rcubedev.utils.services.impl.layer; // fixme temp
 }

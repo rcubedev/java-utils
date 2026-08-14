@@ -26,7 +26,7 @@ class RecursionGuardTests {
         cleanupThreadLocal();
     }
 
-    // fixme add a wrapper obj around TL instead of using reflection
+    // todo: add a wrapper obj around TL instead of using reflection
     private ThreadLocal<int[]> getThreadLocal() {
         try {
             Field field = RecursionGuard.class.getDeclaredField("depth");
