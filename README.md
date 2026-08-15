@@ -5,6 +5,9 @@ A collection of Java utilities, high performance event dispatching systems and e
 > [!WARNING]
 > Most components in this repository are under active development, highly experimental and subject to breaking changes.
 
+![EventBus Demo Preview](docs/assets/eventbus-demo.png)
+_An example from `EventBusDemo.java` showing compile time `@SubscribeEvent` handler priority ordering and cancellation logic_
+
 ## Components
 
 ### EventBus
@@ -77,10 +80,10 @@ Helper utilities designed to simplify configuration serialization
 Java 21+
 
 ## Running the Demo
-Download and run the latest `java_utils_demo-all.jar` file from the [Releases](https://github.com/rcubedev/java-utils/releases/latest) page
+Download and run the latest `java_utils_demo-VERSION-all.jar` file from the [Releases](https://github.com/rcubedev/java-utils/releases/latest) page
 
 ```bash
-java -jar java_utils_demo-all.jar
+java -jar java_utils_demo-VERSION-all.jar
 ```
 
 ## Usage
