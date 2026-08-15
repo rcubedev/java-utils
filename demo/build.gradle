@@ -14,7 +14,9 @@ repositories {
 }
 
 dependencies {
-    // use the published library instead when using this demo as a standalone project
+    // use the published library instead when using this demo as a standalone project.
+    // replace 0.1.0 with the version you want
+    // api 'com.github.rcubedev:java-utils:0.1.0'
     api project(':')
 
     implementation 'org.slf4j:slf4j-api:2.0.9'
