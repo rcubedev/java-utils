@@ -1,13 +1,11 @@
 plugins {
     id 'java-library'
     id 'application'
+    id 'com.gradleup.shadow' version '9.6.1'
 }
 
-version = project.version
-group = project.maven_group
-
 base {
-    archivesName = "java_utils_example"
+    archivesName = 'java_utils_demo'
 }
 
 repositories {
@@ -48,9 +46,23 @@ application {
 
 def archiveNameProvider = project.base.archivesName
 jar {
-    inputs.property "archivesName", archiveNameProvider
+    inputs.property 'archivesName', archiveNameProvider
 
-    from("LICENSE") {
+    from('LICENSE') {
+        into 'META-INF'
+        rename { "${it}_${archiveNameProvider.get()}" }
+    }
+
+    manifest {
+        attributes(
+                'Main-Class': application.mainClass.get()
+        )
+    }
+}
+
+tasks.named('shadowJar') {
+    from('LICENSE') {
+        into 'META-INF'
         rename { "${it}_${archiveNameProvider.get()}" }
     }
 }

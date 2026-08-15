@@ -82,11 +82,11 @@ Add the project as a dependency using [JitPack](https://jitpack.io/):
 ### Groovy DSL
 ```groovy
 repositories {
-  maven { url 'https://jitpack.io' }
+    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
-  implementation 'com.github.rcubedev:java-utils:VERSION'
+    api 'com.github.rcubedev:java-utils:VERSION'
 }
 ```
 
@@ -97,7 +97,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.rcubedev:java-utils:VERSION")
+    api("com.github.rcubedev:java-utils:VERSION")
 }
 ```
 

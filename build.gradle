@@ -16,7 +16,7 @@ base {
     archivesName = project.archives_base_name
 }
 
-def patchedMainDir = layout.buildDirectory.dir("patched/test/classes/java/main")
+def patchedMainDir = layout.buildDirectory.dir('patched/test/classes/java/main')
 
 repositories {
     mavenCentral()
@@ -63,8 +63,8 @@ dependencies {
     runtimeOnly 'org.apache.logging.log4j:log4j-core:2.22.1'
     runtimeOnly 'org.apache.logging.log4j:log4j-slf4j2-impl:2.22.1'
 
-    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
-    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     mockitoAgent('org.mockito:mockito-core:5.+') { transitive = false }
     testImplementation 'org.mockito:mockito-core:5.+'
@@ -92,13 +92,14 @@ java {
 
 def archiveNameProvider = project.base.archivesName
 jar {
-    inputs.property "archivesName", archiveNameProvider
+    inputs.property 'archivesName', archiveNameProvider
 
     manifest {
         attributes('FMLModType': 'LIBRARY')
     }
 
-    from("LICENSE") {
+    from('LICENSE') {
+        into 'META-INF'
         rename { "${it}_${archiveNameProvider.get()}" }
     }
 }
@@ -119,7 +120,7 @@ test {
     useJUnitPlatform()
     dependsOn patchClassesForTest
     finalizedBy jacocoTestReport
-    jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}", "-Xshare:off"
+    jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}", '-Xshare:off'
 
     // swap main with patched variant
     classpath = files(patchedMainDir) + (classpath - sourceSets.main.output.classesDirs)
@@ -140,7 +141,7 @@ tasks.register('integrationTest', Test) {
     group = 'verification'
 
     useJUnitPlatform()
-    jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}", "-Xshare:off"
+    jvmArgs "-javaagent:${configurations.mockitoAgent.asPath}", '-Xshare:off'
 
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath + sourceSets.test.runtimeClasspath
@@ -158,8 +159,8 @@ tasks.register('jacocoIntegrationTestReport', JacocoReport) {
     sourceSets sourceSets.main
     reports {
         html.required = true
-        xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/integrationTest/jacocoIntegrationTestReport.xml"))
-        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/integrationTest"))
+        xml.outputLocation.set(layout.buildDirectory.file('reports/jacoco/integrationTest/jacocoIntegrationTestReport.xml'))
+        html.outputLocation.set(layout.buildDirectory.dir('reports/jacoco/integrationTest'))
     }
 }
 
@@ -168,7 +169,7 @@ check.dependsOn integrationTest
 // possibly publish to GH pkgs
 publishing {
     publications {
-        create("mavenJava", MavenPublication) {
+        create('mavenJava', MavenPublication) {
             artifactId = project.archives_base_name
             from components.java
         }
