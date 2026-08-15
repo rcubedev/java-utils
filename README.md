@@ -1,6 +1,6 @@
 # java-utils
 
-A collection Java utilities, high performance event dispatching systems and experimental APIs for Java 21+.
+A collection of Java utilities, high performance event dispatching systems and experimental APIs for Java 21+.
 
 > [!WARNING]
 > Most components in this repository are under active development, highly experimental and subject to breaking changes.
@@ -58,23 +58,30 @@ An experimental reflection wrapper to align with the Java Language Specification
 > Currently rough around the edges and heavily subject to breaking changes and not recommended for production use in its current state.
 
 ### Services
-Status: WIP
+Status: Experimental (Usable)
 
 A multi layered and priority service loading framework.
 
 ### Registry
-Status: WIP
+Status: Experimental (Usable)
 
 A thread safe, freezable object registry model (`Registry<T>`).<br>
 Has a mutate and freeze lifecycle. Allows registration during bootstrap then turns read only on freeze.
 
 ### Kaleido Config Helpers
-Status: WIP
+Status: Experimental (Usable)
 
 Helper utilities designed to simplify configuration serialization
 
 ## Requirements
 Java 21+
+
+## Running the Demo
+Download and run the latest `java_utils_demo-all.jar` file from the [Releases](https://github.com/rcubedev/java-utils/releases/latest) page
+
+```bash
+java -jar java_utils_demo-all.jar
+```
 
 ## Usage
 Add the project as a dependency using [JitPack](https://jitpack.io/):
