@@ -4,17 +4,16 @@ import com.github.rcubedev.utils.services.api.spi.Service;
 
 public final class EagerServiceImpl<S> implements Service<S> {
 
-    private final Class<? extends S> type;
     private final S instance;
 
-    public EagerServiceImpl(Class<? extends S> type, S instance) {
-        this.type = type;
+    public EagerServiceImpl(S instance) {
         this.instance = instance;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Class<? extends S> type() {
-        return this.type;
+        return (Class<? extends S>) this.instance.getClass();
     }
 
     @Override

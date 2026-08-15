@@ -1,5 +1,6 @@
 package com.github.rcubedev.utils.services.api;
 
+import com.github.rcubedev.utils.services.api.spi.MutableServiceLayer;
 import com.github.rcubedev.utils.services.api.spi.ServiceLayer;
 import com.github.rcubedev.utils.services.impl.RuntimeServiceRegistry;
 import com.github.rcubedev.utils.services.impl.layer.ClassLoaderServiceLayer;
@@ -12,7 +13,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Builds a {@link ServiceRegistry} from a set of known {@link ServiceLayer layers}.
+ * Builds a {@link ServiceRegistry} from the provided {@link ServiceLayer}s.
  */
 public final class ServiceBootstrap {
 
@@ -33,14 +34,14 @@ public final class ServiceBootstrap {
     }
 
     /**
-     * Creates a {@link ServiceLayer} backed by the provided {@link ModuleLayer}.
+     * Creates a manually configured {@link ServiceLayer}.
      */
-    /*public static @NotNull ServiceLayer manual(@NotNull String name, int priority, @NotNull Consumer<ManualServiceLayer> configurer) {
+    public static @NotNull ServiceLayer manual(@NotNull String name, int priority, @NotNull Consumer<MutableServiceLayer> configurer) {
         ManualServiceLayer layer = new ManualServiceLayer(name, priority);
         configurer.accept(layer);
         layer.freeze();
         return layer;
-    }*/
+    }
 
     /**
      * Creates a {@link ServiceLayer} backed by the provided {@link ModuleLayer}.

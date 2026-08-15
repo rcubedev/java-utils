@@ -51,8 +51,9 @@ public final class ModuleLayerServiceLayer implements ServiceLayer {
         Stream<Service<S>> stream = ServiceLoader.load(this.moduleLayer, contract).stream()
                 .map(ProviderServiceImpl::new);
 
-        Optional<Service<S>> ret = eager ? stream.filter(p -> ((Eager) p.get()).isAvailable()).findFirst()
-                     : stream.findFirst();
+        Optional<Service<S>> ret = eager
+                ? stream.map(Service::get).filter(s -> ((Eager) s).isAvailable()).map(s -> (Service<S>) new EagerServiceImpl<>(s)).findFirst()
+                : stream.findFirst();
 
         ret.ifPresent(s -> validateProvidedType(contract, s.type()));
         return ret;
@@ -68,19 +69,23 @@ public final class ModuleLayerServiceLayer implements ServiceLayer {
                 .stream()
                 .toList();
 
-        for (ServiceLoader.Provider<S> provider : providers) validateProvidedType(contract, provider.type());
-
-        if (!eager) return providers.stream().map(s -> (Service<S>) new ProviderServiceImpl<>(s)).toList();
+        if (!eager) {
+            for (ServiceLoader.Provider<S> provider : providers) validateProvidedType(contract, provider.type());
+            return providers.stream().map(s -> (Service<S>) new ProviderServiceImpl<>(s)).toList();
+        }
         return providers.stream().map(ServiceLoader.Provider::get)
                 .filter(s -> ((Eager) s).isAvailable())
-                .map(instance -> (Service<S>) new EagerServiceImpl<>(contract, instance))
+                .map(instance -> {
+                    Service<S> service = new EagerServiceImpl<>(instance);
+                    validateProvidedType(contract, service.type());
+                    return service;
+                })
                 .toList();
     }
 
     private <S> void validateProvidedType(Class<S> contract, Class<? extends S> provided) {
-        if (!(provided == contract)) return;
-        throw new ServiceSignatureException(String.format(
-                "ServiceLayer '%s' provider for '%s' must return its concrete type, not the interface.",
+        if (provided == contract) throw new ServiceSignatureException(String.format(
+                "ServiceLayer '%s' provider for '%s' must return its concrete type, not the contract.",
                 this.name, contract.getSimpleName()
         ));
     }

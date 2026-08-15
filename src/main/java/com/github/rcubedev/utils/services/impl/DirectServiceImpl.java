@@ -10,9 +10,10 @@ public final class DirectServiceImpl<S> implements Service<S> {
     private final Class<? extends S> type;
     private final Supplier<? extends S> supplier;
     private final Object lock = new Object();
+
     private volatile S cachedValue;
 
-    public DirectServiceImpl(Class<? extends S> type, Supplier<? extends S> supplier) {
+    public <T extends S> DirectServiceImpl(Class<T> type, Supplier<T> supplier) {
         this.type = type;
         this.supplier = supplier;
     }
