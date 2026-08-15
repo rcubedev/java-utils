@@ -14,7 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
 
-// fixme this is quite broken in its current form.
 public final class ManualServiceLayer implements MutableServiceLayer {
 
     private final String name;
@@ -48,9 +47,6 @@ public final class ManualServiceLayer implements MutableServiceLayer {
         }
     }
 
-    /**
-     * Call this when mod initialization wraps up to seal the services from further changes.
-     */
     public void freeze() {
         if (frozen) throw new IllegalStateException("Service layer is already frozen");
 
