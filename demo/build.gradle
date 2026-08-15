@@ -1,0 +1,56 @@
+plugins {
+    id 'java-library'
+    id 'application'
+}
+
+version = project.version
+group = project.maven_group
+
+base {
+    archivesName = "java_utils_example"
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.sleeping.town/' }
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    // jitpack for demo, temporarily use master-SNAPSHOT until releaase
+    api 'com.github.rcubedev:java-utils:master-SNAPSHOT'
+
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+
+    compileOnly 'org.jetbrains:annotations:24.1.0'
+
+    runtimeOnly 'org.apache.logging.log4j:log4j-api:2.22.1'
+    runtimeOnly 'org.apache.logging.log4j:log4j-core:2.22.1'
+    runtimeOnly 'org.apache.logging.log4j:log4j-slf4j2-impl:2.22.1'
+}
+
+java {
+    withSourcesJar()
+
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+
+    modularity.inferModulePath = true
+}
+
+application {
+    mainClass = 'com.github.rcubedev.demo.Main'
+}
+
+def archiveNameProvider = project.base.archivesName
+jar {
+    inputs.property "archivesName", archiveNameProvider
+
+    from("LICENSE") {
+        rename { "${it}_${archiveNameProvider.get()}" }
+    }
+}
