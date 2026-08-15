@@ -11,12 +11,11 @@ base {
 repositories {
     mavenCentral()
     maven { url 'https://repo.sleeping.town/' }
-    maven { url 'https://jitpack.io' }
 }
 
 dependencies {
-    // jitpack for demo, temporarily use master-SNAPSHOT until releaase
-    api 'com.github.rcubedev:java-utils:master-SNAPSHOT'
+    // use the published library instead when using this demo as a standalone project
+    api project(':')
 
     implementation 'org.slf4j:slf4j-api:2.0.9'
 
