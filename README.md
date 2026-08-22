@@ -17,6 +17,8 @@ A polymorphic event dispatching system supporting priority based routing utilisi
 invoker factories for reflectionless dispatch when compiled with the annotation processor alongside high performance
 reflective fallbacks via `LambdaMetafactory` and further `MethodHandle` fallbacks when generated invokers are absent.
 
+Example: [EventBusDemo](./demo/src/main/java/com/github/rcubedev/demo/EventBusDemo.java)
+
 #### Resolution path
 * Event target (class with static handlers, instance with non-static handlers or a static `Method` handler) -> internal cache
   * **Cache hit:** Utilises precompiled invoker
@@ -65,16 +67,29 @@ Status: Experimental (Usable)
 
 A multi layered and priority service loading framework.
 
+Example: [ServiceDemo](./demo/src/main/java/com/github/rcubedev/demo/ServiceDemo.java)
+
 ### Registry
 Status: Experimental (Usable)
 
 A thread safe, freezable object registry model (`Registry<T>`).<br>
 Has a mutate and freeze lifecycle. Allows registration during bootstrap then turns read only on freeze.
 
+Example: [RegistryDemo](./demo/src/main/java/com/github/rcubedev/demo/RegistryDemo.java)
+
 ### Kaleido Config Helpers
 Status: Experimental (Usable)
 
-Helper utilities designed to simplify configuration serialization
+Helper utilities for simplifying configuration serialization
+
+Example (serializable enum):
+```java
+public enum MyOption implements ISerializableEnum<MyOption> {
+    FIRST,
+    SECOND,
+    THIRD
+}
+```
 
 ## Requirements
 Java 21+
@@ -87,6 +102,8 @@ java -jar java_utils_demo-VERSION-all.jar
 ```
 
 ## Usage
+See the [demo](./demo) for runnable examples and the Javadocs for detailed API documentation.
+
 Add the project as a dependency using [JitPack](https://jitpack.io/):
 
 ### Groovy DSL
